@@ -36,6 +36,9 @@ echo "== expected-case analysis (formula vs measured hits)"
 python3 scripts/expected_hits.py > results/expected_hits_log.txt
 echo "== real homologous sequences (mt_orang vs mt_human)"
 python3 scripts/real_divergence.py > results/divergence_log.txt
+echo "== peak memory per method; DP-matrix figure"
+python3 scripts/memory.py > results/memory_log.txt
+python3 scripts/fig_dp_matrix.py
 echo "== plots + summary"
 python3 scripts/plot.py
 echo "done: results/summary.md, results/*.png, results/bench.csv"

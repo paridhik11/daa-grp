@@ -21,6 +21,7 @@
 // Env:   APPROX_NOFALLBACK=1  never fall back to a full Myers scan (measure the pure filter)
 //        APPROX_CM="c_hit,c_win,c_bp,a_scan,c_sel" cost-model constants in ns (see scripts/calibrate.py)
 #include <bits/stdc++.h>
+#include <malloc.h>
 using namespace std;
 typedef unsigned long long u64;
 typedef vector<uint8_t> Seq;
@@ -587,6 +588,18 @@ static bool align_best(const uint8_t* T, size_t n, const Seq& P, int k, const ve
 }
 
 // ---------------------------------------------------------------- driver
+static long cur_rss_kb() {   // VmRSS now
+    ifstream f("/proc/self/status"); string line;
+    while (getline(f, line)) if (line.rfind("VmRSS:", 0) == 0) return atol(line.c_str() + 6);
+    return -1;
+}
+static long peak_rss_kb() {   // VmHWM from /proc/self/status (peak resident set size)
+    ifstream f("/proc/self/status"); string line;
+    while (getline(f, line)) if (line.rfind("VmHWM:", 0) == 0) return atol(line.c_str() + 6);
+    return -1;
+}
+static void noop_alg(const uint8_t*, size_t, const Seq&, int, vector<size_t>&) {}
+
 static Seq read_text(const char* path) {
     ifstream f(path);
     if (!f) { fprintf(stderr, "cannot open %s\n", path); exit(1); }
@@ -612,11 +625,13 @@ int main(int argc, char** argv) {
       while (getline(f, line)) { istringstream is(line); string tok; if (!(is >> tok)) continue;
           Seq p; for (char c : tok) p.push_back(code(c)); pats.push_back(p); } }
     gT = T.data(); gN = T.size();
+    malloc_trim(0);
+    long loaded_kb = cur_rss_kb();   // steady RSS after loading text and patterns (transient read buffers returned)
 
     typedef void (*Fn)(const uint8_t*, size_t, const Seq&, int, vector<size_t>&);
     Fn fn = algo == "sellers" ? sellers : algo == "banded" ? banded : algo == "myers" ? myers : algo == "myers_pruned" ? myers_pruned : algo == "lv" ? lv
           : algo == "filter" ? filter_alg : algo == "filter_fa" ? filter_fa : algo == "filter_fa_w" ? filter_fa_w
-          : algo == "blast1" ? blast1 : algo == "blast2" ? blast2 : algo == "map" ? filter_alg : algo == "myers_best" ? myers_best : algo == "mindist" ? mindist : nullptr;
+          : algo == "blast1" ? blast1 : algo == "blast2" ? blast2 : algo == "map" ? filter_alg : algo == "myers_best" ? myers_best : algo == "mindist" ? mindist : algo == "noop" ? noop_alg : nullptr;
     if (!fn) { fprintf(stderr, "unknown algo %s\n", algo.c_str()); return 1; }
 
     // index build is timed separately (one-time cost, amortised over queries)
@@ -640,10 +655,10 @@ int main(int argc, char** argv) {
     size_t total = 0; for (auto& r : res) total += r.size();
     printf("RESULT algo=%s n=%zu patterns=%zu k=%d matches=%zu index_ms=%.3f time_ms=%.3f hits=%lld windows=%lld "
            "verified_bp=%lld fallbacks=%lld filtered=%lld gen_ms=%.3f ver_ms=%.3f sel_ms=%.3f pred_filter_ms=%.3f pred_scan_ms=%.3f "
-           "cells_banded=%lld ungapped=%lld hsps=%lld lv_cells=%lld pruned_blocks=%lld\n",
+           "cells_banded=%lld ungapped=%lld hsps=%lld lv_cells=%lld pruned_blocks=%lld peak_kb=%ld loaded_kb=%ld\n",
            algo.c_str(), T.size(), pats.size(), k, total, (t1 - t0) / 1e6, (t2 - t1) / 1e6, S.hits, S.windows,
            S.verified_bp, S.fallbacks, S.filtered, S.gen_ns / 1e6, S.ver_ns / 1e6, S.sel_ns / 1e6, S.pred_filter_ns / 1e6,
-           S.pred_scan_ns / 1e6, S.cells_banded, S.ungapped, S.hsps, lv_cells, pruned_block_steps);
+           S.pred_scan_ns / 1e6, S.cells_banded, S.ungapped, S.hsps, lv_cells, pruned_block_steps, peak_rss_kb(), loaded_kb);
     if (dump) for (size_t i = 0; i < res.size(); i++) for (size_t e : res[i]) printf(algo == "mindist" ? "D %zu %zu\n" : "M %zu %zu\n", i, e);
     if (algo == "map") for (size_t i = 0; i < pats.size(); i++) {
         Aln al;
