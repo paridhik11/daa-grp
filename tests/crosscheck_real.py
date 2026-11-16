@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 from common import DATA, run_bin  # noqa: E402
 from simulate import make_reads  # noqa: E402
 
-EXACT = ["banded", "myers", "lv", "filter", "filter_fa"]
+EXACT = ["banded", "myers", "lv", "filter", "filter_fa", "filter_fa_w"]
 HEUR = ["blast1", "blast2"]
 bad = 0
 checks = 0

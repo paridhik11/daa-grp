@@ -6,6 +6,7 @@
 //   lv         : Landau-Vishkin (1989) diagonal algorithm, O(nk) expected (direct character extension)
 //   filter     : pigeonhole filter, k+1 EQUAL-length pieces  + Myers verification, cost-model fallback
 //   filter_fa  : pigeonhole filter, k+1 pieces chosen by DP to minimise total seed occurrences
+//   filter_fa_w: as filter_fa but the DP minimises hits + lambda * windows (windows made by each seed's own hits)
 //   blast1     : BLAST-style one-hit seed (11-mer) + ungapped X-drop extension + Myers on window (heuristic)
 //   blast2     : same with BLAST two-hit trigger (two non-overlapping seeds on one diagonal, window A=40)
 //   myers_best : Myers scan reporting only the ends with the minimum distance (<= k); used to check Edlib
@@ -40,6 +41,7 @@ struct Stats {
     double gen_ns = 0, ver_ns = 0, sel_ns = 0, pred_filter_ns = 0, pred_scan_ns = 0;
 } S;
 static bool g_nofallback = false;
+static int WCAP = 20000;   // filter_fa_w: seeds with more hits than this are charged one window per hit (env APPROX_WCAP)
 static double CM_HIT = 40, CM_WIN = 150, CM_BP = 6, CM_SCAN = 6, CM_SEL = 15;  // ns; overridden by APPROX_CM
 
 // ---------------------------------------------------------------- 1. Sellers
@@ -284,27 +286,45 @@ static bool seed_range(const Index& ix, const Seq& P, const Seed& sd, uint32_t& 
 
 // Frequency-aware split: choose k+1 disjoint seeds (length 1..SMAX) minimising total occurrences by DP.
 // f[j][i] = min total count using j seeds inside P[0..i).  O(k * m * SMAX) after an O(m * SMAX) count table.
-static bool select_fa(const Index& ix, const Seq& P, int k, vector<Seed>& seeds) {
+// wmode = true: objective is hits + lambda * windows, with lambda = (c_win + c_bp B (m + 2k)) / c_hit from the fitted cost model,
+// and windows(seed) = number of merged windows made by that seed's own hits (clusters of hit diagonals no more than m + 2k
+// apart).  Seeds shorter than 9 characters, or with more than 20000 hits, are charged one window per hit.
+static bool select_fa(const Index& ix, const Seq& P, int k, vector<Seed>& seeds, bool wmode = false) {
     int m = P.size(), J = k + 1;
     if (m < J) return false;
-    vector<ll> cnt((size_t)m * (SMAX + 1), 0);
+    int B = (m + 63) / 64; ll Lw = m + 2LL * k;
+    double lam = wmode ? (CM_WIN + CM_BP * B * (double)Lw) / CM_HIT : 0.0;
+    vector<double> cnt((size_t)m * (SMAX + 1), 0.0);
+    vector<ll> diag;
     for (int a = 0; a < m; a++)
         for (int L = 1; L <= SMAX && a + L <= m; L++) {
             uint32_t lo, hi; u64 c;
             Seed sd{a, L};
-            cnt[(size_t)a * (SMAX + 1) + L] = seed_range(ix, P, sd, lo, hi, c) ? (ll)(hi - lo) : 0;
+            double v = 0;
+            if (seed_range(ix, P, sd, lo, hi, c)) {
+                double hits = (double)(hi - lo), w = hits;
+                if (wmode && L >= 9 && hits > 1 && hits <= WCAP) {
+                    diag.clear();
+                    for (uint32_t x = lo; x < hi; x++) diag.push_back((ll)ix.pos[x] - a);
+                    sort(diag.begin(), diag.end());
+                    w = 1;
+                    for (size_t x = 1; x < diag.size(); x++) if (diag[x] - diag[x - 1] > Lw) w++;
+                }
+                v = hits + lam * w;
+            }
+            cnt[(size_t)a * (SMAX + 1) + L] = v;
         }
-    const ll INF = (ll)4e18;
-    vector<vector<ll>> f(J + 1, vector<ll>(m + 1, INF));
+    const double INF = 4e18;
+    vector<vector<double>> f(J + 1, vector<double>(m + 1, INF));
     vector<vector<int8_t>> bp(J + 1, vector<int8_t>(m + 1, 0));  // 0 = skip char i-1, else seed length
     for (int i = 0; i <= m; i++) f[0][i] = 0;
     for (int j = 1; j <= J; j++)
         for (int i = j; i <= m; i++) {
-            ll best = f[j][i - 1]; int8_t ch = 0;
+            double best = f[j][i - 1]; int8_t ch = 0;
             for (int L = 1; L <= SMAX && L <= i; L++) {
-                ll prev = f[j - 1][i - L];
+                double prev = f[j - 1][i - L];
                 if (prev >= INF) continue;
-                ll v = prev + cnt[(size_t)(i - L) * (SMAX + 1) + L];
+                double v = prev + cnt[(size_t)(i - L) * (SMAX + 1) + L];
                 if (v < best) { best = v; ch = L; }
             }
             f[j][i] = best; bp[j][i] = ch;
@@ -320,7 +340,8 @@ static bool select_fa(const Index& ix, const Seq& P, int k, vector<Seed>& seeds)
     return true;
 }
 
-static void filter_core(const uint8_t* T, size_t n, const Seq& P, int k, bool freq_aware, vector<size_t>& out) {
+static void filter_core(const uint8_t* T, size_t n, const Seq& P, int k, int mode, vector<size_t>& out) {
+    bool freq_aware = mode >= 1;
     int m = P.size();
     MyersPat mp(P);
     int B = mp.B;
@@ -330,7 +351,7 @@ static void filter_core(const uint8_t* T, size_t n, const Seq& P, int k, bool fr
     vector<Seed> seeds;
     if (freq_aware) {
         double ts = now_ns();
-        bool okfa = select_fa(ix, P, k, seeds);
+        bool okfa = select_fa(ix, P, k, seeds, mode == 2);
         S.sel_ns += now_ns() - ts;
         if (!okfa) { scan_fallback(mp, T, n, k, out); return; }
     } else for (int i = 0; i <= k; i++) seeds.push_back({i * q, min(q, SMAX)});
@@ -374,8 +395,9 @@ static void filter_core(const uint8_t* T, size_t n, const Seq& P, int k, bool fr
     if (!g_nofallback && CM_HIT * H + CM_WIN * W.size() + CM_BP * B * (double)total > pred_s) { scan_fallback(mp, T, n, k, out); return; }
     verify_merged(W, mp, T, k, out);
 }
-static void filter_alg(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) { filter_core(T, n, P, k, false, out); }
-static void filter_fa(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) { filter_core(T, n, P, k, true, out); }
+static void filter_alg(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) { filter_core(T, n, P, k, 0, out); }
+static void filter_fa(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) { filter_core(T, n, P, k, 1, out); }
+static void filter_fa_w(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) { filter_core(T, n, P, k, 2, out); }
 
 // ---------------------------------------------------------------- 5. BLAST-style heuristic
 // Differences from real BLAST (blastn): exact 11-mer seeds only (no neighbourhood words / substitution matrix),
@@ -542,6 +564,7 @@ int main(int argc, char** argv) {
     bool dump = false, times = false;
     for (int a = 5; a < argc; a++) { if (string(argv[a]) == "--dump") dump = true; if (string(argv[a]) == "--times") times = true; }
     if (getenv("APPROX_NOFALLBACK")) g_nofallback = atoi(getenv("APPROX_NOFALLBACK")) != 0;
+    if (const char* wc = getenv("APPROX_WCAP")) WCAP = atoi(wc);
     if (const char* cm = getenv("APPROX_CM")) sscanf(cm, "%lf,%lf,%lf,%lf,%lf", &CM_HIT, &CM_WIN, &CM_BP, &CM_SCAN, &CM_SEL);
     Seq T = read_text(argv[2]);
     vector<Seq> pats;
@@ -552,13 +575,13 @@ int main(int argc, char** argv) {
 
     typedef void (*Fn)(const uint8_t*, size_t, const Seq&, int, vector<size_t>&);
     Fn fn = algo == "sellers" ? sellers : algo == "banded" ? banded : algo == "myers" ? myers : algo == "lv" ? lv
-          : algo == "filter" ? filter_alg : algo == "filter_fa" ? filter_fa
+          : algo == "filter" ? filter_alg : algo == "filter_fa" ? filter_fa : algo == "filter_fa_w" ? filter_fa_w
           : algo == "blast1" ? blast1 : algo == "blast2" ? blast2 : algo == "map" ? filter_alg : algo == "myers_best" ? myers_best : algo == "mindist" ? mindist : nullptr;
     if (!fn) { fprintf(stderr, "unknown algo %s\n", algo.c_str()); return 1; }
 
     // index build is timed separately (one-time cost, amortised over queries)
     double t0 = now_ns();
-    if (algo == "filter" || algo == "filter_fa" || algo == "blast1" || algo == "blast2") get_index();
+    if (algo == "filter" || algo == "filter_fa" || algo == "filter_fa_w" || algo == "blast1" || algo == "blast2") get_index();
     double t1 = now_ns();
 
     vector<vector<size_t>> res(pats.size());

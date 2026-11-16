@@ -29,6 +29,8 @@ echo "== instructions per cell (cachegrind; perf hardware counters unavailable i
 python3 scripts/instr_profile.py > results/instr_profile_log.txt || echo "instr_profile failed"
 echo "== benchmarks + stress"
 python3 scripts/run_bench.py $QUICK | tee results/bench_log.txt | tail -3
+echo "== seed-selection objective test (hits vs hits + lambda * windows)"
+python3 scripts/objective_test.py > results/objective_test_log.txt
 echo "== expected-case analysis (formula vs measured hits)"
 python3 scripts/expected_hits.py > results/expected_hits_log.txt
 echo "== real homologous sequences (mt_orang vs mt_human)"
