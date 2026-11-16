@@ -18,6 +18,11 @@ echo "== correctness (all exact algorithms vs Sellers; Edlib vs min-distance end
 python3 tests/edlib_semantics.py
 python3 tests/crosscheck.py
 APPROX_NOFALLBACK=1 python3 tests/crosscheck.py     # pure filter path, no scan fallback
+echo "== real-data cross-check of every exact algorithm vs Sellers"
+python3 tests/crosscheck_real.py
+echo "== alignment output validation (CIGAR) + worked example"
+python3 tests/test_mapping.py
+python3 scripts/mapping_example.py
 echo "== cost-model calibration (synthetic genome; evaluated later on E. coli 536)"
 python3 scripts/calibrate.py > results/calibration_log.txt
 echo "== instructions per cell (cachegrind; perf hardware counters unavailable in this VM)"

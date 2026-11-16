@@ -13,6 +13,7 @@
 // Semantics: report every END index e (0-based) in text T such that some substring of T ending at e has
 // edit distance <= k from the pattern P (empty substrings are not reported).
 //
+//   map        : exact ends from `filter`, then best alignment per read with CIGAR (lines "A <read> <dist> <start> <end> <cigar> <nends>")
 // Usage: approx <algo> <text-file> <patterns-file> <k> [--dump] [--times]
 //   --times prints one line per pattern: T <i> <ns> <hits> <verified_bp> <pred_filter_ns> <pred_scan_ns> <fallbacks>
 // Env:   APPROX_NOFALLBACK=1  never fall back to a full Myers scan (measure the pure filter)
@@ -445,6 +446,84 @@ static void blast_core(const uint8_t* T, size_t n, const Seq& P, int k, bool two
 static void blast1(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) { blast_core(T, n, P, k, false, out); }
 static void blast2(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) { blast_core(T, n, P, k, true, out); }
 
+
+// ---------------------------------------------------------------- alignment output (traceback on verified windows)
+// Given the exact set of end positions (distance <= k) from the filter, find the best alignment (minimum distance, ties:
+// leftmost end) and a CIGAR.  Ends are grouped into clusters whose windows overlap; for each cluster a full semi-global DP
+// (free start in the text) over the window [first_end + 1 - (m + k), last_end] is filled, the best end of the cluster is
+// chosen, and a traceback gives the alignment.  CIGAR uses SAM semantics with extended operators:
+//   =  match   X  mismatch   I  extra read (pattern) character   D  extra text (reference) character
+struct Aln { int dist = -1; ll start = 0, end = 0; string cigar; size_t nends = 0; };
+
+static int dp_window(const uint8_t* T, ll ws, ll we, const Seq& P, vector<int>& D) {
+    int m = P.size(); ll W = we - ws;
+    D.assign((size_t)(m + 1) * (W + 1), 0);
+    for (int i = 0; i <= m; i++) D[(size_t)i * (W + 1)] = i;
+    for (ll j = 1; j <= W; j++) {
+        uint8_t t = T[ws + j - 1];
+        for (int i = 1; i <= m; i++) {
+            int cost = (P[i - 1] == t && t < 4) ? 0 : 1;
+            int v = D[(size_t)(i - 1) * (W + 1) + j - 1] + cost;
+            v = min(v, D[(size_t)(i - 1) * (W + 1) + j] + 1);
+            v = min(v, D[(size_t)i * (W + 1) + j - 1] + 1);
+            D[(size_t)i * (W + 1) + j] = v;
+        }
+    }
+    return 0;
+}
+
+static void traceback(const vector<int>& D, const uint8_t* T, ll ws, ll W, const Seq& P, ll jend, Aln& a) {
+    int m = P.size(); int i = m; ll j = jend; string ops;
+    while (i > 0) {
+        int cur = D[(size_t)i * (W + 1) + j];
+        if (j > 0) {
+            uint8_t t = T[ws + j - 1];
+            int cost = (P[i - 1] == t && t < 4) ? 0 : 1;
+            if (cur == D[(size_t)(i - 1) * (W + 1) + j - 1] + cost) { ops.push_back(cost ? 'X' : '='); i--; j--; continue; }
+        }
+        if (cur == D[(size_t)(i - 1) * (W + 1) + j] + 1) { ops.push_back('I'); i--; continue; }
+        ops.push_back('D'); j--;   // only reachable when j > 0
+    }
+    reverse(ops.begin(), ops.end());
+    a.start = ws + j;
+    string cig; size_t x = 0;
+    while (x < ops.size()) { size_t y = x; while (y < ops.size() && ops[y] == ops[x]) y++; cig += to_string(y - x); cig.push_back(ops[x]); x = y; }
+    a.cigar = cig;
+}
+
+static bool align_best(const uint8_t* T, size_t n, const Seq& P, int k, const vector<size_t>& ends, Aln& best) {
+    if (ends.empty()) return false;
+    int m = P.size();
+    best = Aln(); best.nends = ends.size();
+    size_t a = 0;
+    vector<int> D;
+    while (a < ends.size()) {
+        size_t b = a;
+        while (b + 1 < ends.size() && (ll)(ends[b + 1] - ends[b]) <= (ll)(m + k)) b++;
+        ll ws = max(0LL, (ll)ends[a] + 1 - (m + k)), we = (ll)ends[b] + 1;
+        ll W = we - ws;
+        if ((ll)(m + 1) * (W + 1) > 40000000LL) {   // very long cluster: align each end on its own window
+            for (size_t c = a; c <= b; c++) {
+                ll ws1 = max(0LL, (ll)ends[c] + 1 - (m + k)), we1 = (ll)ends[c] + 1;
+                dp_window(T, ws1, we1, P, D);
+                ll W1 = we1 - ws1; int d = D[(size_t)m * (W1 + 1) + W1];
+                if (best.dist < 0 || d < best.dist) { best.dist = d; best.end = we1; Aln tmp; traceback(D, T, ws1, W1, P, W1, tmp); best.start = tmp.start; best.cigar = tmp.cigar; }
+            }
+        } else {
+            dp_window(T, ws, we, P, D);
+            for (size_t c = a; c <= b; c++) {
+                ll jc = (ll)ends[c] + 1 - ws; int d = D[(size_t)m * (W + 1) + jc];
+                if (best.dist < 0 || d < best.dist) {
+                    best.dist = d; best.end = (ll)ends[c] + 1;
+                    Aln tmp; traceback(D, T, ws, W, P, jc, tmp); best.start = tmp.start; best.cigar = tmp.cigar;
+                }
+            }
+        }
+        a = b + 1;
+    }
+    return best.dist >= 0;
+}
+
 // ---------------------------------------------------------------- driver
 static Seq read_text(const char* path) {
     ifstream f(path);
@@ -474,7 +553,7 @@ int main(int argc, char** argv) {
     typedef void (*Fn)(const uint8_t*, size_t, const Seq&, int, vector<size_t>&);
     Fn fn = algo == "sellers" ? sellers : algo == "banded" ? banded : algo == "myers" ? myers : algo == "lv" ? lv
           : algo == "filter" ? filter_alg : algo == "filter_fa" ? filter_fa
-          : algo == "blast1" ? blast1 : algo == "blast2" ? blast2 : algo == "myers_best" ? myers_best : algo == "mindist" ? mindist : nullptr;
+          : algo == "blast1" ? blast1 : algo == "blast2" ? blast2 : algo == "map" ? filter_alg : algo == "myers_best" ? myers_best : algo == "mindist" ? mindist : nullptr;
     if (!fn) { fprintf(stderr, "unknown algo %s\n", algo.c_str()); return 1; }
 
     // index build is timed separately (one-time cost, amortised over queries)
@@ -503,6 +582,12 @@ int main(int argc, char** argv) {
            S.verified_bp, S.fallbacks, S.filtered, S.gen_ns / 1e6, S.ver_ns / 1e6, S.sel_ns / 1e6, S.pred_filter_ns / 1e6,
            S.pred_scan_ns / 1e6, S.cells_banded, S.ungapped, S.hsps, lv_cells);
     if (dump) for (size_t i = 0; i < res.size(); i++) for (size_t e : res[i]) printf(algo == "mindist" ? "D %zu %zu\n" : "M %zu %zu\n", i, e);
+    if (algo == "map") for (size_t i = 0; i < pats.size(); i++) {
+        Aln al;
+        if (align_best(T.data(), T.size(), pats[i], k, res[i], al))
+            printf("A %zu %d %lld %lld %s %zu\n", i, al.dist, al.start, al.end, al.cigar.c_str(), al.nends);
+        else printf("A %zu * * * * 0\n", i);
+    }
     if (times) for (size_t i = 0; i < perq.size(); i++)
         printf("T %zu %.0f %.0f %.0f %.1f %.1f %.0f\n", i, perq[i].ns, perq[i].hits, perq[i].bp, perq[i].pf, perq[i].ps, perq[i].fb);
     return 0;

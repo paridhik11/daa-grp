@@ -396,7 +396,7 @@ for k in HK:
               f"{f(g('blast1', 'ms_per_pattern')):.3f} (rec {f(g('blast1', 'recall_read')):.2f}) | "
               f"{f(g('blast2', 'ms_per_pattern')):.3f} (rec {f(g('blast2', 'recall_read')):.2f}) | "
               f"{int(hv('filter', k, 'fallbacks'))} | {int(hv('filter_fa', k, 'fallbacks'))} |")
-for extra_md in ("instr_profile.md", "expected_hits.md", "divergence.md", "mapping_validation.md", "objective_test.md", "pruned_myers.md", "memory.md"):
+for extra_md in ("instr_profile.md", "expected_hits.md", "divergence.md", "mapping_validation.md", "mapping_example.md", "objective_test.md", "pruned_myers.md", "memory.md"):
     ipath = os.path.join(RES, extra_md)
     if os.path.exists(ipath):
         md.append("\n" + open(ipath).read())
