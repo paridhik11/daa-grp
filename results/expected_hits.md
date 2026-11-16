@@ -22,7 +22,7 @@
 | 17 | 5 | 5 | 80859.3 | 80802.0 | 1.00 | 80286.4 | 80285.2 | 80881.5 | 1.01 | 1.01 | 4493.02 | 4493.18 |
 | 20 | 4 | 4 | 377343.5 | 377403.1 | 1.00 | 346425.7 | 346424.1 | 344398.7 | 0.99 | 0.99 | 17969.56 | 17969.74 |
 
-Predicted crossover with a Myers scan (cost-model constants, formula hits): uniform-text formula k = 16.2 (k/m = 0.162); spectrum-corrected formula k = 16.2 (k/m = 0.162).
+Predicted crossover with a Myers scan (cost-model constants, formula hits): uniform-text formula k = 17.0 (k/m = 0.170); spectrum-corrected formula k = 17.0 (k/m = 0.170).
 
 ### Synthetic genome (3% injected repeats) (n = 4,600,000)
 
@@ -43,7 +43,7 @@ Predicted crossover with a Myers scan (cost-model constants, formula hits): unif
 | 17 | 5 | 5 | 80859.3 | 80824.0 | 1.00 | 80286.4 | 80286.4 | 80822.7 | 1.01 | 1.01 | 4493.18 | 4493.18 |
 | 20 | 4 | 4 | 377343.5 | 377303.2 | 1.00 | 346425.7 | 346425.5 | 344371.9 | 0.99 | 0.99 | 17969.72 | 17969.74 |
 
-Predicted crossover with a Myers scan (cost-model constants, formula hits): uniform-text formula k = 16.2 (k/m = 0.162); spectrum-corrected formula k = 16.2 (k/m = 0.162).
+Predicted crossover with a Myers scan (cost-model constants, formula hits): uniform-text formula k = 17.0 (k/m = 0.170); spectrum-corrected formula k = 17.0 (k/m = 0.170).
 
 ### E. coli 536 (real) (n = 4,938,920)
 
@@ -64,7 +64,7 @@ Predicted crossover with a Myers scan (cost-model constants, formula hits): unif
 | 17 | 5 | 5 | 86816.9 | 85768.4 | 0.99 | 86201.2 | 94052.5 | 96206.8 | 1.12 | 1.02 | 5876.23 | 4824.16 |
 | 20 | 4 | 4 | 405145.5 | 408636.8 | 1.01 | 371949.1 | 394515.5 | 411230.2 | 1.11 | 1.04 | 21929.96 | 19293.64 |
 
-Predicted crossover with a Myers scan (cost-model constants, formula hits): uniform-text formula k = 16.2 (k/m = 0.162); spectrum-corrected formula k = 16.0 (k/m = 0.160).
+Predicted crossover with a Myers scan (cost-model constants, formula hits): uniform-text formula k = 17.0 (k/m = 0.170); spectrum-corrected formula k = 16.7 (k/m = 0.167).
 
 ### Agreement (factor error over k = 1, 2, 3, 4, 6, 8, 10, 11, 12, 13, 14, 15, 17, 20: median / worst)
 

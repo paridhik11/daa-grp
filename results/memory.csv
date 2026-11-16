@@ -1,14 +1,14 @@
 algo,peak_mb,over_baseline_mb,theory
-noop,20.17578125,,text only (n bytes) plus read buffers
-sellers,20.19140625,,O(m)
-banded,20.140625,,O(m)
-myers,20.1875,,O(B sigma)
-myers_pruned,20.13671875,,O(B sigma)
-lv,50.77734375,42.421875,2 arrays of n + 2k ints (8n bytes)
-filter,63.91796875,55.546875,4(4^11+1) + 4n bytes index (about 37 MB)
-filter_fa,63.875,55.546875,same index
+noop,20.19140625,,text only (n bytes) plus read buffers
+sellers,20.16015625,,O(m)
+banded,20.171875,,O(m)
+myers,20.203125,,O(B sigma)
+myers_pruned,20.14453125,,O(B sigma)
+lv,50.75,42.421875,2 arrays of n + 2k ints (8n bytes)
+filter,63.88671875,55.546875,"index 4(4^11+1) + 4n bytes (37 MB) plus build temporaries (counter copy 17 MB, flags 5 MB)"
+filter_fa,63.93359375,55.546875,same index
 filter_fa_w,63.921875,55.546875,same index
-blast1,63.88671875,55.546875,same index
-blast2,63.8828125,55.546875,same index
-map,63.921875,55.546875,same index + O(m (m + k)) per cluster
-edlib (Python process),39.28515625,,library; measured as ru_maxrss increase over loading the text
+blast1,63.9375,55.546875,same index
+blast2,63.9375,55.546875,same index
+map,63.875,55.5,same index + O(m (m + k)) per cluster
+edlib (Python process),39.2890625,,library; measured as ru_maxrss increase over loading the text

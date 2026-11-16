@@ -9,7 +9,7 @@ Text: first 150,000 bp of E. coli 536; m = 100; per pattern (mean of 5). Myers c
 | 5 | banded | 229.8 | 21.43 | 10.7 | 16.29 | 2024.7 | 12.43% |
 | 5 | myers | 98.7 | 0.99 | 100.0 | 9.01 | 621.8 | 6.90% |
 | 20 | banded | 754.3 | 18.92 | 39.9 | 45.42 | 1952.4 | 4.30% |
-| 20 | myers | 98.8 | 0.99 | 100.0 | 9.01 | 639.4 | 7.10% |
+| 20 | myers | 98.8 | 0.99 | 100.0 | 9.01 | 639.3 | 7.10% |
 
 At k = 5: banded executes 2.3x the instructions of Myers per text character while computing 9x fewer cells; instructions per cell are 21.4 (banded) against 0.99 (Myers).
 
