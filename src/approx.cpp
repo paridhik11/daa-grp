@@ -204,6 +204,14 @@ static void lv(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& 
     }
 }
 
+// Minimum edit distance of P to any substring of T (reported as a single "value"); verified against Sellers by scripts/real_divergence.py.
+static void mindist(const uint8_t* T, size_t n, const Seq& P, int, vector<size_t>& out) {
+    MyersPat mp(P);
+    int best = INT_MAX;
+    myers_columns(mp, T, n, [&](size_t, int sc) { if (sc < best) best = sc; });
+    out.push_back((size_t)best);
+}
+
 // ---------------------------------------------------------------- seed index (direct-address 11-mer table)
 static const int SMAX = 11;
 struct Index {
@@ -466,7 +474,7 @@ int main(int argc, char** argv) {
     typedef void (*Fn)(const uint8_t*, size_t, const Seq&, int, vector<size_t>&);
     Fn fn = algo == "sellers" ? sellers : algo == "banded" ? banded : algo == "myers" ? myers : algo == "lv" ? lv
           : algo == "filter" ? filter_alg : algo == "filter_fa" ? filter_fa
-          : algo == "blast1" ? blast1 : algo == "blast2" ? blast2 : algo == "myers_best" ? myers_best : nullptr;
+          : algo == "blast1" ? blast1 : algo == "blast2" ? blast2 : algo == "myers_best" ? myers_best : algo == "mindist" ? mindist : nullptr;
     if (!fn) { fprintf(stderr, "unknown algo %s\n", algo.c_str()); return 1; }
 
     // index build is timed separately (one-time cost, amortised over queries)
@@ -494,7 +502,7 @@ int main(int argc, char** argv) {
            algo.c_str(), T.size(), pats.size(), k, total, (t1 - t0) / 1e6, (t2 - t1) / 1e6, S.hits, S.windows,
            S.verified_bp, S.fallbacks, S.filtered, S.gen_ns / 1e6, S.ver_ns / 1e6, S.sel_ns / 1e6, S.pred_filter_ns / 1e6,
            S.pred_scan_ns / 1e6, S.cells_banded, S.ungapped, S.hsps, lv_cells);
-    if (dump) for (size_t i = 0; i < res.size(); i++) for (size_t e : res[i]) printf("M %zu %zu\n", i, e);
+    if (dump) for (size_t i = 0; i < res.size(); i++) for (size_t e : res[i]) printf(algo == "mindist" ? "D %zu %zu\n" : "M %zu %zu\n", i, e);
     if (times) for (size_t i = 0; i < perq.size(); i++)
         printf("T %zu %.0f %.0f %.0f %.1f %.1f %.0f\n", i, perq[i].ns, perq[i].hits, perq[i].bp, perq[i].pf, perq[i].ps, perq[i].fb);
     return 0;
