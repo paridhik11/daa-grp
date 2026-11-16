@@ -1,0 +1,29 @@
+main text: ecoli536
+
+ecoli536
+  url:    https://raw.githubusercontent.com/BenLangmead/bowtie/master/genomes/NC_008253.fna
+  header: gi|110640213|ref|NC_008253.1| Escherichia coli 536, complete genome
+  length: 4938920 (raw 4938920), GC 0.5052
+  sha256: 169aeb32aa5f16e93aa7789f8fe1ce9f19d8de4c48c1dfafd05bcf772cb2c84a
+sarscov2
+  url:    https://raw.githubusercontent.com/nf-core/test-datasets/modules/data/genomics/sarscov2/genome/genome.fasta
+  header: MT192765.1 Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/human/USA/PC00101P/2020, complete genome
+  length: 29829 (raw 29829), GC 0.3801
+  sha256: a2b20227b6e0915e7e7cc5ae8eeb066ff5f9be3b6aa383662cda2e2314cb771d
+lambda
+  url:    https://raw.githubusercontent.com/BenLangmead/bowtie2/master/example/reference/lambda_virus.fa
+  header: gi|9626243|ref|NC_001416.1| Enterobacteria phage lambda, complete genome
+  length: 48502 (raw 48502), GC 0.4986
+  sha256: 36432a40f602258d19ae7c8152ddbc30390b559f2859c01d7047c77b048c71b3
+mt_human
+  url:    https://raw.githubusercontent.com/lh3/minimap2/master/test/MT-human.fa
+  header: MT_human
+  length: 16569 (raw 16569), GC 0.4436
+  sha256: d2a0dd2597b1087e41c2f0aec275c6a87eaf92907e878ac2f9a355a5ae2c0327
+mt_orang
+  url:    https://raw.githubusercontent.com/lh3/minimap2/master/test/MT-orang.fa
+  header: MT_orang co:Z:comment
+  length: 16499 (raw 16499), GC 0.4594
+  sha256: c8186b8c19185c64bba2e955d04382aed52e3540d751531be33c192d360c7d8e
+genome_synth
+  SYNTHETIC random genome with injected repeats (scripts/simulate.py)

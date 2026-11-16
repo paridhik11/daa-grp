@@ -1,0 +1,10 @@
+approx
+approx_generic
+__pycache__/
+data/raw/
+data/_*.txt
+data/*.txt
+!data/SOURCES.txt
+!data/fetch_log.txt
+data/stress_regions.json
+*.pyc

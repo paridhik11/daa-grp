@@ -1,0 +1,13 @@
+{
+ "fit": "NNLS (scipy.optimize.nnls)",
+ "c_win_unconstrained": 1123.063391264302,
+ "c_bp_unconstrained": 2.555336800559693,
+ "c_hit": 58.793509017009534,
+ "c_win": 1123.0633912643016,
+ "c_bp": 2.555336800559697,
+ "a_scan": 5.43788345410628,
+ "c_sel": 36.966089466089464,
+ "text_len": 4600000,
+ "calibrated_on": "synthetic genome_synth.txt",
+ "evaluated_on": "E. coli 536"
+}

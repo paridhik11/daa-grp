@@ -1,0 +1,516 @@
+main text: ecoli536
+[error] x=0.01 ecoli536 k=1 sellers            649.696 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.01 ecoli536 k=1 banded              54.641 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.01 ecoli536 k=1 myers               56.047 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.01 ecoli536 k=1 edlib               28.600 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.01 ecoli536 k=1 wfa                 66.371 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.01 ecoli536 k=1 filter               0.016 ms/pat hits/pat=6 fb=0 rec_read= 
+[error] x=0.01 ecoli536 k=1 filter_nofb          0.010 ms/pat hits/pat=6 fb=0 rec_read= 
+[error] x=0.01 ecoli536 k=1 filter_fa            0.034 ms/pat hits/pat=1 fb=0 rec_read= 
+[error] x=0.01 ecoli536 k=1 filter_fa_nofb       0.039 ms/pat hits/pat=1 fb=0 rec_read= 
+[error] x=0.01 ecoli536 k=1 blast1               0.065 ms/pat hits/pat=314 fb=0 rec_read=1.0 
+[error] x=0.01 ecoli536 k=1 blast2               0.034 ms/pat hits/pat=314 fb=0 rec_read=1.0 
+[error] x=0.02 ecoli536 k=2 sellers            634.514 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.02 ecoli536 k=2 banded              67.109 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.02 ecoli536 k=2 myers               51.975 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.02 ecoli536 k=2 edlib               25.353 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.02 ecoli536 k=2 wfa                 87.394 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.02 ecoli536 k=2 filter               0.016 ms/pat hits/pat=9 fb=0 rec_read= 
+[error] x=0.02 ecoli536 k=2 filter_nofb          0.014 ms/pat hits/pat=9 fb=0 rec_read= 
+[error] x=0.02 ecoli536 k=2 filter_fa            0.031 ms/pat hits/pat=2 fb=0 rec_read= 
+[error] x=0.02 ecoli536 k=2 filter_fa_nofb       0.049 ms/pat hits/pat=2 fb=0 rec_read= 
+[error] x=0.02 ecoli536 k=2 blast1               0.056 ms/pat hits/pat=284 fb=0 rec_read=1.0 
+[error] x=0.02 ecoli536 k=2 blast2               0.031 ms/pat hits/pat=284 fb=0 rec_read=1.0 
+[error] x=0.03 ecoli536 k=3 sellers            627.419 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.03 ecoli536 k=3 banded              79.695 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.03 ecoli536 k=3 myers               52.782 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.03 ecoli536 k=3 edlib               24.284 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.03 ecoli536 k=3 wfa                 99.789 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.03 ecoli536 k=3 filter               0.020 ms/pat hits/pat=12 fb=0 rec_read= 
+[error] x=0.03 ecoli536 k=3 filter_nofb          0.021 ms/pat hits/pat=12 fb=0 rec_read= 
+[error] x=0.03 ecoli536 k=3 filter_fa            0.038 ms/pat hits/pat=2 fb=0 rec_read= 
+[error] x=0.03 ecoli536 k=3 filter_fa_nofb       0.037 ms/pat hits/pat=2 fb=0 rec_read= 
+[error] x=0.03 ecoli536 k=3 blast1               0.064 ms/pat hits/pat=296 fb=0 rec_read=1.0 
+[error] x=0.03 ecoli536 k=3 blast2               0.031 ms/pat hits/pat=296 fb=0 rec_read=1.0 
+[error] x=0.04 ecoli536 k=4 sellers            596.864 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.04 ecoli536 k=4 banded              95.635 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.04 ecoli536 k=4 myers               53.441 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.04 ecoli536 k=4 edlib               25.461 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.04 ecoli536 k=4 wfa                121.716 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.04 ecoli536 k=4 filter               0.017 ms/pat hits/pat=12 fb=0 rec_read= 
+[error] x=0.04 ecoli536 k=4 filter_nofb          0.019 ms/pat hits/pat=12 fb=0 rec_read= 
+[error] x=0.04 ecoli536 k=4 filter_fa            0.038 ms/pat hits/pat=3 fb=0 rec_read= 
+[error] x=0.04 ecoli536 k=4 filter_fa_nofb       0.036 ms/pat hits/pat=3 fb=0 rec_read= 
+[error] x=0.04 ecoli536 k=4 blast1               0.054 ms/pat hits/pat=246 fb=0 rec_read=1.0 
+[error] x=0.04 ecoli536 k=4 blast2               0.030 ms/pat hits/pat=246 fb=0 rec_read=1.0 
+[error] x=0.06 ecoli536 k=6 sellers            607.557 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.06 ecoli536 k=6 banded             115.644 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.06 ecoli536 k=6 myers               56.276 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.06 ecoli536 k=6 edlib               25.016 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.06 ecoli536 k=6 wfa                167.725 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.06 ecoli536 k=6 filter               0.030 ms/pat hits/pat=19 fb=0 rec_read= 
+[error] x=0.06 ecoli536 k=6 filter_nofb          0.029 ms/pat hits/pat=19 fb=0 rec_read= 
+[error] x=0.06 ecoli536 k=6 filter_fa            0.059 ms/pat hits/pat=5 fb=0 rec_read= 
+[error] x=0.06 ecoli536 k=6 filter_fa_nofb       0.054 ms/pat hits/pat=5 fb=0 rec_read= 
+[error] x=0.06 ecoli536 k=6 blast1               0.076 ms/pat hits/pat=251 fb=0 rec_read=1.0 
+[error] x=0.06 ecoli536 k=6 blast2               0.030 ms/pat hits/pat=251 fb=0 rec_read=1.0 
+[error] x=0.08 ecoli536 k=8 sellers            627.858 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.08 ecoli536 k=8 banded             144.211 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.08 ecoli536 k=8 myers               54.816 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.08 ecoli536 k=8 edlib               26.256 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.08 ecoli536 k=8 wfa                215.794 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.08 ecoli536 k=8 filter               0.050 ms/pat hits/pat=29 fb=0 rec_read= 
+[error] x=0.08 ecoli536 k=8 filter_nofb          0.050 ms/pat hits/pat=29 fb=0 rec_read= 
+[error] x=0.08 ecoli536 k=8 filter_fa            0.063 ms/pat hits/pat=14 fb=0 rec_read= 
+[error] x=0.08 ecoli536 k=8 filter_fa_nofb       0.062 ms/pat hits/pat=14 fb=0 rec_read= 
+[error] x=0.08 ecoli536 k=8 blast1               0.051 ms/pat hits/pat=228 fb=0 rec_read=1.0 
+[error] x=0.08 ecoli536 k=8 blast2               0.026 ms/pat hits/pat=228 fb=0 rec_read=0.95 
+[error] x=0.1 ecoli536 k=10 sellers            646.413 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.1 ecoli536 k=10 banded             167.405 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.1 ecoli536 k=10 myers               52.529 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.1 ecoli536 k=10 edlib               31.261 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.1 ecoli536 k=10 wfa                267.094 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.1 ecoli536 k=10 filter               0.670 ms/pat hits/pat=457 fb=0 rec_read= 
+[error] x=0.1 ecoli536 k=10 filter_nofb          0.653 ms/pat hits/pat=457 fb=0 rec_read= 
+[error] x=0.1 ecoli536 k=10 filter_fa            0.376 ms/pat hits/pat=218 fb=0 rec_read= 
+[error] x=0.1 ecoli536 k=10 filter_fa_nofb       0.383 ms/pat hits/pat=218 fb=0 rec_read= 
+[error] x=0.1 ecoli536 k=10 blast1               0.056 ms/pat hits/pat=229 fb=0 rec_read=1.0 
+[error] x=0.1 ecoli536 k=10 blast2               0.022 ms/pat hits/pat=229 fb=0 rec_read=0.95 
+[error] x=0.11 ecoli536 k=11 sellers            581.144 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.11 ecoli536 k=11 banded             174.963 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.11 ecoli536 k=11 myers               53.636 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.11 ecoli536 k=11 edlib               31.167 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.11 ecoli536 k=11 wfa                251.966 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.11 ecoli536 k=11 filter               1.823 ms/pat hits/pat=1360 fb=0 rec_read= 
+[error] x=0.11 ecoli536 k=11 filter_nofb          1.853 ms/pat hits/pat=1360 fb=0 rec_read= 
+[error] x=0.11 ecoli536 k=11 filter_fa            1.175 ms/pat hits/pat=723 fb=0 rec_read= 
+[error] x=0.11 ecoli536 k=11 filter_fa_nofb       1.241 ms/pat hits/pat=723 fb=0 rec_read= 
+[error] x=0.11 ecoli536 k=11 blast1               0.040 ms/pat hits/pat=198 fb=0 rec_read=1.0 
+[error] x=0.11 ecoli536 k=11 blast2               0.022 ms/pat hits/pat=198 fb=0 rec_read=0.7 
+[error] x=0.12 ecoli536 k=12 sellers            679.797 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.12 ecoli536 k=12 banded             189.672 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.12 ecoli536 k=12 myers               54.599 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.12 ecoli536 k=12 edlib               28.195 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.12 ecoli536 k=12 wfa                284.220 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.12 ecoli536 k=12 filter               5.977 ms/pat hits/pat=4587 fb=0 rec_read= 
+[error] x=0.12 ecoli536 k=12 filter_nofb          5.957 ms/pat hits/pat=4587 fb=0 rec_read= 
+[error] x=0.12 ecoli536 k=12 filter_fa            2.650 ms/pat hits/pat=1844 fb=0 rec_read= 
+[error] x=0.12 ecoli536 k=12 filter_fa_nofb       2.635 ms/pat hits/pat=1844 fb=0 rec_read= 
+[error] x=0.12 ecoli536 k=12 blast1               0.053 ms/pat hits/pat=214 fb=0 rec_read=1.0 
+[error] x=0.12 ecoli536 k=12 blast2               0.026 ms/pat hits/pat=214 fb=0 rec_read=0.75 
+[error] x=0.13 ecoli536 k=13 sellers            603.912 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.13 ecoli536 k=13 banded             201.626 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.13 ecoli536 k=13 myers               59.940 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.13 ecoli536 k=13 edlib               26.696 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.13 ecoli536 k=13 wfa                331.426 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.13 ecoli536 k=13 filter              12.016 ms/pat hits/pat=9788 fb=0 rec_read= 
+[error] x=0.13 ecoli536 k=13 filter_nofb         12.284 ms/pat hits/pat=9788 fb=0 rec_read= 
+[error] x=0.13 ecoli536 k=13 filter_fa            6.358 ms/pat hits/pat=4004 fb=0 rec_read= 
+[error] x=0.13 ecoli536 k=13 filter_fa_nofb       6.179 ms/pat hits/pat=4004 fb=0 rec_read= 
+[error] x=0.13 ecoli536 k=13 blast1               0.047 ms/pat hits/pat=202 fb=0 rec_read=1.0 
+[error] x=0.13 ecoli536 k=13 blast2               0.027 ms/pat hits/pat=202 fb=0 rec_read=0.75 
+[error] x=0.14 ecoli536 k=14 sellers            634.561 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.14 ecoli536 k=14 banded             226.961 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.14 ecoli536 k=14 myers               53.775 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.14 ecoli536 k=14 edlib               27.971 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.14 ecoli536 k=14 wfa                417.375 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.14 ecoli536 k=14 filter              22.493 ms/pat hits/pat=20078 fb=0 rec_read= 
+[error] x=0.14 ecoli536 k=14 filter_nofb         22.680 ms/pat hits/pat=20078 fb=0 rec_read= 
+[error] x=0.14 ecoli536 k=14 filter_fa           10.499 ms/pat hits/pat=8255 fb=0 rec_read= 
+[error] x=0.14 ecoli536 k=14 filter_fa_nofb      13.933 ms/pat hits/pat=8255 fb=0 rec_read= 
+[error] x=0.14 ecoli536 k=14 blast1               0.045 ms/pat hits/pat=199 fb=0 rec_read=1.0 
+[error] x=0.14 ecoli536 k=14 blast2               0.025 ms/pat hits/pat=199 fb=0 rec_read=0.7 
+[error] x=0.15 ecoli536 k=15 sellers            612.541 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.15 ecoli536 k=15 banded             233.136 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.15 ecoli536 k=15 myers               53.632 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.15 ecoli536 k=15 edlib               24.936 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.15 ecoli536 k=15 wfa                318.753 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.15 ecoli536 k=15 filter              30.039 ms/pat hits/pat=34566 fb=3 rec_read= 
+[error] x=0.15 ecoli536 k=15 filter_nofb         30.264 ms/pat hits/pat=34566 fb=0 rec_read= 
+[error] x=0.15 ecoli536 k=15 filter_fa           18.125 ms/pat hits/pat=15108 fb=0 rec_read= 
+[error] x=0.15 ecoli536 k=15 filter_fa_nofb      18.160 ms/pat hits/pat=15108 fb=0 rec_read= 
+[error] x=0.15 ecoli536 k=15 blast1               0.047 ms/pat hits/pat=209 fb=0 rec_read=1.0 
+[error] x=0.15 ecoli536 k=15 blast2               0.029 ms/pat hits/pat=209 fb=0 rec_read=0.6 
+[error] x=0.17 ecoli536 k=17 sellers            666.835 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.17 ecoli536 k=17 banded             259.259 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.17 ecoli536 k=17 myers               53.092 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.17 ecoli536 k=17 edlib               24.921 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.17 ecoli536 k=17 wfa                395.895 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.17 ecoli536 k=17 filter              54.539 ms/pat hits/pat=93567 fb=20 rec_read= 
+[error] x=0.17 ecoli536 k=17 filter_nofb         55.251 ms/pat hits/pat=93567 fb=0 rec_read= 
+[error] x=0.17 ecoli536 k=17 filter_fa           38.533 ms/pat hits/pat=42686 fb=1 rec_read= 
+[error] x=0.17 ecoli536 k=17 filter_fa_nofb      37.939 ms/pat hits/pat=42686 fb=0 rec_read= 
+[error] x=0.17 ecoli536 k=17 blast1               0.045 ms/pat hits/pat=170 fb=0 rec_read=0.85 
+[error] x=0.17 ecoli536 k=17 blast2               0.020 ms/pat hits/pat=170 fb=0 rec_read=0.45 
+[error] x=0.2 ecoli536 k=20 sellers            580.954 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.2 ecoli536 k=20 banded             287.322 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.2 ecoli536 k=20 myers               53.085 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.2 ecoli536 k=20 edlib               28.649 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.2 ecoli536 k=20 wfa                431.800 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.2 ecoli536 k=20 filter              51.801 ms/pat hits/pat=390326 fb=20 rec_read= 
+[error] x=0.2 ecoli536 k=20 filter_nofb         79.498 ms/pat hits/pat=390326 fb=0 rec_read= 
+[error] x=0.2 ecoli536 k=20 filter_fa           54.387 ms/pat hits/pat=156054 fb=20 rec_read= 
+[error] x=0.2 ecoli536 k=20 filter_fa_nofb      60.412 ms/pat hits/pat=156054 fb=0 rec_read= 
+[error] x=0.2 ecoli536 k=20 blast1               0.041 ms/pat hits/pat=181 fb=0 rec_read=0.95 
+[error] x=0.2 ecoli536 k=20 blast2               0.018 ms/pat hits/pat=181 fb=0 rec_read=0.4 
+[error] x=0.3 ecoli536 k=30 sellers            635.661 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.3 ecoli536 k=30 banded             410.693 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.3 ecoli536 k=30 myers               55.823 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.3 ecoli536 k=30 edlib               31.957 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.3 ecoli536 k=30 wfa                591.472 ms/pat hits/pat=0 fb=0 rec_read= 
+[error] x=0.3 ecoli536 k=30 filter              53.610 ms/pat hits/pat=2495237 fb=20 rec_read= 
+[error] x=0.3 ecoli536 k=30 filter_nofb        269.535 ms/pat hits/pat=2495237 fb=0 rec_read= 
+[error] x=0.3 ecoli536 k=30 filter_fa           52.815 ms/pat hits/pat=1833441 fb=20 rec_read= 
+[error] x=0.3 ecoli536 k=30 filter_fa_nofb     202.735 ms/pat hits/pat=1833441 fb=0 rec_read= 
+[error] x=0.3 ecoli536 k=30 blast1               0.037 ms/pat hits/pat=161 fb=0 rec_read=0.3 
+[error] x=0.3 ecoli536 k=30 blast2               0.018 ms/pat hits/pat=161 fb=0 rec_read=0.0 
+[headline] k=1 myers           median    51.940 ms  p10-p90 [49.930, 53.691]  hits(med)=0 fb=0
+[headline] k=1 filter          median     0.007 ms  p10-p90 [0.002, 0.017]  hits(med)=5 fb=0
+[headline] k=1 filter_nofb     median     0.006 ms  p10-p90 [0.002, 0.015]  hits(med)=5 fb=0
+[headline] k=1 filter_fa       median     0.022 ms  p10-p90 [0.020, 0.026]  hits(med)=1 fb=0
+[headline] k=1 filter_fa_nofb  median     0.022 ms  p10-p90 [0.020, 0.025]  hits(med)=1 fb=0
+[headline] k=2 myers           median    52.417 ms  p10-p90 [49.852, 57.318]  hits(med)=0 fb=0
+[headline] k=2 filter          median     0.010 ms  p10-p90 [0.006, 0.021]  hits(med)=9 fb=0
+[headline] k=2 filter_nofb     median     0.011 ms  p10-p90 [0.006, 0.022]  hits(med)=9 fb=0
+[headline] k=2 filter_fa       median     0.027 ms  p10-p90 [0.024, 0.032]  hits(med)=1 fb=0
+[headline] k=2 filter_fa_nofb  median     0.027 ms  p10-p90 [0.023, 0.033]  hits(med)=1 fb=0
+[headline] k=3 myers           median    52.283 ms  p10-p90 [50.390, 55.107]  hits(med)=0 fb=0
+[headline] k=3 filter          median     0.016 ms  p10-p90 [0.008, 0.027]  hits(med)=12 fb=0
+[headline] k=3 filter_nofb     median     0.016 ms  p10-p90 [0.008, 0.027]  hits(med)=12 fb=0
+[headline] k=3 filter_fa       median     0.028 ms  p10-p90 [0.025, 0.033]  hits(med)=2 fb=0
+[headline] k=3 filter_fa_nofb  median     0.028 ms  p10-p90 [0.026, 0.032]  hits(med)=2 fb=0
+[headline] k=4 myers           median    51.840 ms  p10-p90 [49.789, 53.988]  hits(med)=0 fb=0
+[headline] k=4 filter          median     0.018 ms  p10-p90 [0.010, 0.034]  hits(med)=14 fb=0
+[headline] k=4 filter_nofb     median     0.018 ms  p10-p90 [0.010, 0.034]  hits(med)=14 fb=0
+[headline] k=4 filter_fa       median     0.031 ms  p10-p90 [0.029, 0.036]  hits(med)=3 fb=0
+[headline] k=4 filter_fa_nofb  median     0.036 ms  p10-p90 [0.027, 0.043]  hits(med)=3 fb=0
+[headline] k=6 myers           median    52.429 ms  p10-p90 [50.753, 57.965]  hits(med)=0 fb=0
+[headline] k=6 filter          median     0.025 ms  p10-p90 [0.014, 0.045]  hits(med)=18 fb=0
+[headline] k=6 filter_nofb     median     0.024 ms  p10-p90 [0.015, 0.044]  hits(med)=18 fb=0
+[headline] k=6 filter_fa       median     0.033 ms  p10-p90 [0.029, 0.040]  hits(med)=4 fb=0
+[headline] k=6 filter_fa_nofb  median     0.032 ms  p10-p90 [0.028, 0.038]  hits(med)=4 fb=0
+[headline] k=8 myers           median    52.305 ms  p10-p90 [50.058, 56.030]  hits(med)=0 fb=0
+[headline] k=8 filter          median     0.036 ms  p10-p90 [0.019, 0.106]  hits(med)=24 fb=0
+[headline] k=8 filter_nofb     median     0.033 ms  p10-p90 [0.018, 0.098]  hits(med)=24 fb=0
+[headline] k=8 filter_fa       median     0.051 ms  p10-p90 [0.041, 0.068]  hits(med)=15 fb=0
+[headline] k=8 filter_fa_nofb  median     0.061 ms  p10-p90 [0.046, 0.086]  hits(med)=15 fb=0
+[headline] k=10 myers           median    52.063 ms  p10-p90 [50.178, 53.993]  hits(med)=0 fb=0
+[headline] k=10 filter          median     0.463 ms  p10-p90 [0.292, 1.631]  hits(med)=326 fb=0
+[headline] k=10 filter_nofb     median     0.458 ms  p10-p90 [0.311, 1.646]  hits(med)=326 fb=0
+[headline] k=10 filter_fa       median     0.334 ms  p10-p90 [0.209, 0.479]  hits(med)=212 fb=0
+[headline] k=10 filter_fa_nofb  median     0.328 ms  p10-p90 [0.198, 0.479]  hits(med)=212 fb=0
+[headline] k=11 myers           median    52.251 ms  p10-p90 [50.928, 53.274]  hits(med)=0 fb=0
+[headline] k=11 filter          median     1.748 ms  p10-p90 [1.314, 2.233]  hits(med)=1260 fb=0
+[headline] k=11 filter_nofb     median     1.712 ms  p10-p90 [1.313, 2.164]  hits(med)=1260 fb=0
+[headline] k=11 filter_fa       median     0.940 ms  p10-p90 [0.538, 1.489]  hits(med)=667 fb=0
+[headline] k=11 filter_fa_nofb  median     0.954 ms  p10-p90 [0.539, 1.493]  hits(med)=667 fb=0
+[headline] k=12 myers           median    52.940 ms  p10-p90 [50.698, 58.486]  hits(med)=0 fb=0
+[headline] k=12 filter          median     6.217 ms  p10-p90 [2.438, 8.089]  hits(med)=4828 fb=0
+[headline] k=12 filter_nofb     median     6.470 ms  p10-p90 [2.573, 8.315]  hits(med)=4828 fb=0
+[headline] k=12 filter_fa       median     2.487 ms  p10-p90 [1.623, 3.874]  hits(med)=1656 fb=0
+[headline] k=12 filter_fa_nofb  median     2.408 ms  p10-p90 [1.562, 3.705]  hits(med)=1656 fb=0
+[headline] k=13 myers           median    51.933 ms  p10-p90 [50.295, 53.557]  hits(med)=0 fb=0
+[headline] k=13 filter          median     7.450 ms  p10-p90 [6.136, 21.031]  hits(med)=5494 fb=0
+[headline] k=13 filter_nofb     median     7.362 ms  p10-p90 [6.173, 20.888]  hits(med)=5494 fb=0
+[headline] k=13 filter_fa       median     5.480 ms  p10-p90 [3.669, 8.352]  hits(med)=3774 fb=0
+[headline] k=13 filter_fa_nofb  median     5.438 ms  p10-p90 [3.586, 8.642]  hits(med)=3774 fb=0
+[headline] k=14 myers           median    53.074 ms  p10-p90 [50.690, 61.733]  hits(med)=0 fb=0
+[headline] k=14 filter          median    23.573 ms  p10-p90 [16.926, 27.406]  hits(med)=20796 fb=0
+[headline] k=14 filter_nofb     median    23.601 ms  p10-p90 [16.231, 27.931]  hits(med)=20796 fb=0
+[headline] k=14 filter_fa       median     9.760 ms  p10-p90 [7.189, 13.653]  hits(med)=7370 fb=0
+[headline] k=14 filter_fa_nofb  median    10.525 ms  p10-p90 [7.708, 15.013]  hits(med)=7370 fb=0
+[headline] k=15 myers           median    53.446 ms  p10-p90 [50.742, 59.452]  hits(med)=0 fb=0
+[headline] k=15 filter          median    27.672 ms  p10-p90 [23.784, 36.925]  hits(med)=23647 fb=8
+[headline] k=15 filter_nofb     median    27.164 ms  p10-p90 [23.990, 35.714]  hits(med)=23647 fb=0
+[headline] k=15 filter_fa       median    16.964 ms  p10-p90 [12.906, 22.990]  hits(med)=14000 fb=0
+[headline] k=15 filter_fa_nofb  median    18.545 ms  p10-p90 [13.984, 27.494]  hits(med)=14000 fb=0
+[headline] k=17 myers           median    52.830 ms  p10-p90 [50.583, 56.849]  hits(med)=0 fb=0
+[headline] k=17 filter          median    53.269 ms  p10-p90 [50.938, 65.751]  hits(med)=97332 fb=99
+[headline] k=17 filter_nofb     median    54.041 ms  p10-p90 [50.739, 59.048]  hits(med)=97332 fb=0
+[headline] k=17 filter_fa       median    38.339 ms  p10-p90 [29.633, 51.766]  hits(med)=41428 fb=7
+[headline] k=17 filter_fa_nofb  median    39.579 ms  p10-p90 [29.387, 47.390]  hits(med)=41428 fb=0
+[headline] k=20 myers           median    52.493 ms  p10-p90 [50.439, 57.018]  hits(med)=0 fb=0
+[headline] k=20 filter          median    53.330 ms  p10-p90 [51.271, 59.960]  hits(med)=435776 fb=100
+[headline] k=20 filter_nofb     median    82.866 ms  p10-p90 [68.150, 102.836]  hits(med)=435776 fb=0
+[headline] k=20 filter_fa       median    52.788 ms  p10-p90 [51.137, 56.207]  hits(med)=144428 fb=100
+[headline] k=20 filter_fa_nofb  median    59.340 ms  p10-p90 [55.401, 64.396]  hits(med)=144428 fb=0
+[headline] k=30 myers           median    52.209 ms  p10-p90 [50.125, 54.192]  hits(med)=0 fb=0
+[headline] k=30 filter          median    52.653 ms  p10-p90 [50.549, 54.026]  hits(med)=2504724 fb=100
+[headline] k=30 filter_nofb     median   275.081 ms  p10-p90 [257.218, 300.203]  hits(med)=2504724 fb=0
+[headline] k=30 filter_fa       median    53.148 ms  p10-p90 [51.473, 57.623]  hits(med)=1747860 fb=100
+[headline] k=30 filter_fa_nofb  median   202.880 ms  p10-p90 [166.620, 270.323]  hits(med)=1747860 fb=0
+[length] x=50 ecoli536 k=2 sellers            331.509 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=50 ecoli536 k=2 banded              68.082 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=50 ecoli536 k=2 myers               31.079 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=50 ecoli536 k=2 edlib               25.155 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=50 ecoli536 k=2 wfa                 95.130 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=50 ecoli536 k=2 filter               0.008 ms/pat hits/pat=8 fb=0 rec_read= 
+[length] x=50 ecoli536 k=2 filter_fa            0.024 ms/pat hits/pat=3 fb=0 rec_read= 
+[length] x=50 ecoli536 k=2 blast1               0.027 ms/pat hits/pat=134 fb=0 rec_read=1.0 
+[length] x=50 ecoli536 k=2 blast2               0.015 ms/pat hits/pat=134 fb=0 rec_read=0.85 
+[length] x=100 ecoli536 k=5 sellers            652.754 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=100 ecoli536 k=5 banded             114.311 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=100 ecoli536 k=5 myers               53.480 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=100 ecoli536 k=5 edlib               35.154 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=100 ecoli536 k=5 wfa                163.552 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=100 ecoli536 k=5 filter               0.032 ms/pat hits/pat=18 fb=0 rec_read= 
+[length] x=100 ecoli536 k=5 filter_fa            0.054 ms/pat hits/pat=4 fb=0 rec_read= 
+[length] x=100 ecoli536 k=5 blast1               0.084 ms/pat hits/pat=271 fb=0 rec_read=1.0 
+[length] x=100 ecoli536 k=5 blast2               0.044 ms/pat hits/pat=271 fb=0 rec_read=1.0 
+[length] x=200 ecoli536 k=10 sellers           1273.659 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=200 ecoli536 k=10 banded             180.946 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=200 ecoli536 k=10 myers              107.983 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=200 ecoli536 k=10 edlib               25.080 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=200 ecoli536 k=10 wfa                288.959 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=200 ecoli536 k=10 filter               0.173 ms/pat hits/pat=32 fb=0 rec_read= 
+[length] x=200 ecoli536 k=10 filter_fa            0.100 ms/pat hits/pat=5 fb=0 rec_read= 
+[length] x=200 ecoli536 k=10 blast1               0.114 ms/pat hits/pat=573 fb=0 rec_read=1.0 
+[length] x=200 ecoli536 k=10 blast2               0.062 ms/pat hits/pat=573 fb=0 rec_read=1.0 
+[length] x=400 ecoli536 k=20 sellers           2534.070 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=400 ecoli536 k=20 banded             303.217 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=400 ecoli536 k=20 myers              200.048 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=400 ecoli536 k=20 edlib               25.179 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=400 ecoli536 k=20 wfa                530.129 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=400 ecoli536 k=20 filter               0.765 ms/pat hits/pat=61 fb=0 rec_read= 
+[length] x=400 ecoli536 k=20 filter_fa            0.227 ms/pat hits/pat=10 fb=0 rec_read= 
+[length] x=400 ecoli536 k=20 blast1               0.232 ms/pat hits/pat=1114 fb=0 rec_read=1.0 
+[length] x=400 ecoli536 k=20 blast2               0.152 ms/pat hits/pat=1114 fb=0 rec_read=1.0 
+[length] x=800 ecoli536 k=40 sellers           5001.443 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=800 ecoli536 k=40 banded             557.147 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=800 ecoli536 k=40 myers              405.794 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=800 ecoli536 k=40 edlib               38.941 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=800 ecoli536 k=40 wfa               1591.213 ms/pat hits/pat=0 fb=0 rec_read= 
+[length] x=800 ecoli536 k=40 filter               7.507 ms/pat hits/pat=127 fb=0 rec_read= 
+[length] x=800 ecoli536 k=40 filter_fa            0.902 ms/pat hits/pat=16 fb=0 rec_read= 
+[length] x=800 ecoli536 k=40 blast1               0.870 ms/pat hits/pat=2354 fb=0 rec_read=1.0 
+[length] x=800 ecoli536 k=40 blast2               0.403 ms/pat hits/pat=2354 fb=0 rec_read=1.0 
+[textsize] x=250000 ecoli536 k=5 sellers             39.298 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=250000 ecoli536 k=5 banded               6.015 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=250000 ecoli536 k=5 myers                3.306 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=250000 ecoli536 k=5 edlib                2.206 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=250000 ecoli536 k=5 wfa                  4.874 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=250000 ecoli536 k=5 filter               0.007 ms/pat hits/pat=4 fb=0 rec_read= 
+[textsize] x=250000 ecoli536 k=5 filter_fa            0.038 ms/pat hits/pat=1 fb=0 rec_read= 
+[textsize] x=250000 ecoli536 k=5 blast1               0.015 ms/pat hits/pat=64 fb=0 rec_read=1.0 
+[textsize] x=250000 ecoli536 k=5 blast2               0.009 ms/pat hits/pat=64 fb=0 rec_read=1.0 
+[textsize] x=500000 ecoli536 k=5 sellers             74.497 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=500000 ecoli536 k=5 banded              11.124 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=500000 ecoli536 k=5 myers                5.265 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=500000 ecoli536 k=5 edlib                3.513 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=500000 ecoli536 k=5 wfa                  8.468 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=500000 ecoli536 k=5 filter               0.009 ms/pat hits/pat=6 fb=0 rec_read= 
+[textsize] x=500000 ecoli536 k=5 filter_fa            0.036 ms/pat hits/pat=2 fb=0 rec_read= 
+[textsize] x=500000 ecoli536 k=5 blast1               0.013 ms/pat hits/pat=81 fb=0 rec_read=1.0 
+[textsize] x=500000 ecoli536 k=5 blast2               0.011 ms/pat hits/pat=81 fb=0 rec_read=0.95 
+[textsize] x=1000000 ecoli536 k=5 sellers            120.531 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=1000000 ecoli536 k=5 banded              22.187 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=1000000 ecoli536 k=5 myers               10.549 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=1000000 ecoli536 k=5 edlib                5.565 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=1000000 ecoli536 k=5 wfa                 18.356 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=1000000 ecoli536 k=5 filter               0.011 ms/pat hits/pat=6 fb=0 rec_read= 
+[textsize] x=1000000 ecoli536 k=5 filter_fa            0.030 ms/pat hits/pat=2 fb=0 rec_read= 
+[textsize] x=1000000 ecoli536 k=5 blast1               0.017 ms/pat hits/pat=100 fb=0 rec_read=1.0 
+[textsize] x=1000000 ecoli536 k=5 blast2               0.014 ms/pat hits/pat=100 fb=0 rec_read=1.0 
+[textsize] x=2000000 ecoli536 k=5 sellers            281.500 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=2000000 ecoli536 k=5 banded              41.665 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=2000000 ecoli536 k=5 myers               20.998 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=2000000 ecoli536 k=5 edlib               10.281 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=2000000 ecoli536 k=5 wfa                 50.157 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=2000000 ecoli536 k=5 filter               0.016 ms/pat hits/pat=9 fb=0 rec_read= 
+[textsize] x=2000000 ecoli536 k=5 filter_fa            0.053 ms/pat hits/pat=2 fb=0 rec_read= 
+[textsize] x=2000000 ecoli536 k=5 blast1               0.040 ms/pat hits/pat=130 fb=0 rec_read=1.0 
+[textsize] x=2000000 ecoli536 k=5 blast2               0.023 ms/pat hits/pat=130 fb=0 rec_read=0.95 
+[textsize] x=4938920 ecoli536 k=5 sellers            631.776 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=4938920 ecoli536 k=5 banded             106.538 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=4938920 ecoli536 k=5 myers               62.912 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=4938920 ecoli536 k=5 edlib               26.711 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=4938920 ecoli536 k=5 wfa                169.293 ms/pat hits/pat=0 fb=0 rec_read= 
+[textsize] x=4938920 ecoli536 k=5 filter               0.030 ms/pat hits/pat=19 fb=0 rec_read= 
+[textsize] x=4938920 ecoli536 k=5 filter_fa            0.043 ms/pat hits/pat=3 fb=0 rec_read= 
+[textsize] x=4938920 ecoli536 k=5 blast1               0.060 ms/pat hits/pat=267 fb=0 rec_read=1.0 
+[textsize] x=4938920 ecoli536 k=5 blast2               0.029 ms/pat hits/pat=267 fb=0 rec_read=1.0 
+[datasets] x=ecoli536 ecoli536 k=5 sellers            608.188 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=ecoli536 ecoli536 k=5 myers               52.629 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=ecoli536 ecoli536 k=5 edlib               37.920 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=ecoli536 ecoli536 k=5 wfa                163.871 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=ecoli536 ecoli536 k=5 filter               0.026 ms/pat hits/pat=16 fb=0 rec_read= 
+[datasets] x=ecoli536 ecoli536 k=5 filter_fa            0.040 ms/pat hits/pat=4 fb=0 rec_read= 
+[datasets] x=ecoli536 ecoli536 k=5 blast1               0.057 ms/pat hits/pat=262 fb=0 rec_read=1.0 
+[datasets] x=ecoli536 ecoli536 k=5 blast2               0.032 ms/pat hits/pat=262 fb=0 rec_read=1.0 
+[datasets] x=ecoli536 ecoli536 k=10 sellers            637.827 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=ecoli536 ecoli536 k=10 myers               57.891 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=ecoli536 ecoli536 k=10 edlib               28.400 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=ecoli536 ecoli536 k=10 wfa                304.876 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=ecoli536 ecoli536 k=10 filter               0.552 ms/pat hits/pat=383 fb=0 rec_read= 
+[datasets] x=ecoli536 ecoli536 k=10 filter_fa            0.330 ms/pat hits/pat=187 fb=0 rec_read= 
+[datasets] x=ecoli536 ecoli536 k=10 blast1               0.044 ms/pat hits/pat=201 fb=0 rec_read=1.0 
+[datasets] x=ecoli536 ecoli536 k=10 blast2               0.025 ms/pat hits/pat=201 fb=0 rec_read=0.95 
+[datasets] x=sarscov2 sarscov2 k=5 sellers              3.689 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=sarscov2 sarscov2 k=5 myers                0.319 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=sarscov2 sarscov2 k=5 edlib                0.153 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=sarscov2 sarscov2 k=5 wfa                  0.486 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=sarscov2 sarscov2 k=5 filter               0.004 ms/pat hits/pat=3 fb=0 rec_read= 
+[datasets] x=sarscov2 sarscov2 k=5 filter_fa            0.043 ms/pat hits/pat=1 fb=0 rec_read= 
+[datasets] x=sarscov2 sarscov2 k=5 blast1               0.013 ms/pat hits/pat=52 fb=0 rec_read=1.0 
+[datasets] x=sarscov2 sarscov2 k=5 blast2               0.014 ms/pat hits/pat=52 fb=0 rec_read=1.0 
+[datasets] x=sarscov2 sarscov2 k=10 sellers              4.960 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=sarscov2 sarscov2 k=10 myers                0.319 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=sarscov2 sarscov2 k=10 edlib                0.152 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=sarscov2 sarscov2 k=10 wfa                  0.733 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=sarscov2 sarscov2 k=10 filter               0.016 ms/pat hits/pat=9 fb=0 rec_read= 
+[datasets] x=sarscov2 sarscov2 k=10 filter_fa            0.056 ms/pat hits/pat=4 fb=0 rec_read= 
+[datasets] x=sarscov2 sarscov2 k=10 blast1               0.011 ms/pat hits/pat=32 fb=0 rec_read=1.0 
+[datasets] x=sarscov2 sarscov2 k=10 blast2               0.007 ms/pat hits/pat=32 fb=0 rec_read=0.95 
+[datasets] x=lambda lambda k=5 sellers              6.140 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=lambda lambda k=5 myers                0.510 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=lambda lambda k=5 edlib                0.503 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=lambda lambda k=5 wfa                  1.144 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=lambda lambda k=5 filter               0.004 ms/pat hits/pat=3 fb=0 rec_read= 
+[datasets] x=lambda lambda k=5 filter_fa            0.025 ms/pat hits/pat=2 fb=0 rec_read= 
+[datasets] x=lambda lambda k=5 blast1               0.007 ms/pat hits/pat=53 fb=0 rec_read=1.0 
+[datasets] x=lambda lambda k=5 blast2               0.008 ms/pat hits/pat=53 fb=0 rec_read=1.0 
+[datasets] x=lambda lambda k=10 sellers              6.074 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=lambda lambda k=10 myers                0.531 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=lambda lambda k=10 edlib                0.243 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=lambda lambda k=10 wfa                  1.557 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=lambda lambda k=10 filter               0.015 ms/pat hits/pat=9 fb=0 rec_read= 
+[datasets] x=lambda lambda k=10 filter_fa            0.039 ms/pat hits/pat=4 fb=0 rec_read= 
+[datasets] x=lambda lambda k=10 blast1               0.008 ms/pat hits/pat=32 fb=0 rec_read=1.0 
+[datasets] x=lambda lambda k=10 blast2               0.007 ms/pat hits/pat=32 fb=0 rec_read=0.95 
+[datasets] x=mt_human mt_human k=5 sellers              2.053 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=mt_human mt_human k=5 myers                0.174 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=mt_human mt_human k=5 edlib                0.087 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=mt_human mt_human k=5 wfa                  0.269 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=mt_human mt_human k=5 filter               0.004 ms/pat hits/pat=4 fb=0 rec_read= 
+[datasets] x=mt_human mt_human k=5 filter_fa            0.032 ms/pat hits/pat=1 fb=0 rec_read= 
+[datasets] x=mt_human mt_human k=5 blast1               0.007 ms/pat hits/pat=54 fb=0 rec_read=1.0 
+[datasets] x=mt_human mt_human k=5 blast2               0.010 ms/pat hits/pat=54 fb=0 rec_read=1.0 
+[datasets] x=mt_human mt_human k=10 sellers              2.221 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=mt_human mt_human k=10 myers                0.177 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=mt_human mt_human k=10 edlib                0.092 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=mt_human mt_human k=10 wfa                  0.468 ms/pat hits/pat=0 fb=0 rec_read= 
+[datasets] x=mt_human mt_human k=10 filter               0.008 ms/pat hits/pat=7 fb=0 rec_read= 
+[datasets] x=mt_human mt_human k=10 filter_fa            0.037 ms/pat hits/pat=3 fb=0 rec_read= 
+[datasets] x=mt_human mt_human k=10 blast1               0.007 ms/pat hits/pat=34 fb=0 rec_read=1.0 
+[datasets] x=mt_human mt_human k=10 blast2               0.006 ms/pat hits/pat=34 fb=0 rec_read=0.95 
+[stress] x=uniform ecoli536+lowcomplex k=6 myers               51.912 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=6 edlib               25.777 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=6 filter               0.026 ms/pat hits/pat=17 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=6 filter_nofb          0.026 ms/pat hits/pat=17 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=6 filter_fa            0.054 ms/pat hits/pat=4 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=6 filter_fa_nofb       0.046 ms/pat hits/pat=4 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=6 blast1               0.061 ms/pat hits/pat=338 fb=0 rec_read=1.0 
+[stress] x=uniform ecoli536+lowcomplex k=6 blast2               0.034 ms/pat hits/pat=338 fb=0 rec_read=1.0 
+[stress] x=uniform ecoli536+lowcomplex k=10 myers               52.014 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=10 edlib               27.000 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=10 filter               0.685 ms/pat hits/pat=463 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=10 filter_nofb          0.796 ms/pat hits/pat=463 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=10 filter_fa            0.329 ms/pat hits/pat=186 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=10 filter_fa_nofb       0.335 ms/pat hits/pat=186 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=10 blast1               0.067 ms/pat hits/pat=214 fb=0 rec_read=1.0 
+[stress] x=uniform ecoli536+lowcomplex k=10 blast2               0.031 ms/pat hits/pat=214 fb=0 rec_read=0.95 
+[stress] x=uniform ecoli536+lowcomplex k=15 myers               53.099 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=15 edlib               27.457 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=15 filter              25.867 ms/pat hits/pat=25050 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=15 filter_nofb         24.903 ms/pat hits/pat=25050 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=15 filter_fa           17.309 ms/pat hits/pat=15693 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=15 filter_fa_nofb      17.881 ms/pat hits/pat=15693 fb=0 rec_read= 
+[stress] x=uniform ecoli536+lowcomplex k=15 blast1               0.375 ms/pat hits/pat=5126 fb=0 rec_read=1.0 
+[stress] x=uniform ecoli536+lowcomplex k=15 blast2               0.341 ms/pat hits/pat=5126 fb=0 rec_read=0.45 
+[stress] x=clustered ecoli536+lowcomplex k=6 myers               53.127 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=6 edlib               27.172 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=6 filter               0.029 ms/pat hits/pat=22 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=6 filter_nofb          0.033 ms/pat hits/pat=22 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=6 filter_fa            0.053 ms/pat hits/pat=8 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=6 filter_fa_nofb       0.054 ms/pat hits/pat=8 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=6 blast1               0.055 ms/pat hits/pat=292 fb=0 rec_read=1.0 
+[stress] x=clustered ecoli536+lowcomplex k=6 blast2               0.030 ms/pat hits/pat=292 fb=0 rec_read=1.0 
+[stress] x=clustered ecoli536+lowcomplex k=10 myers               53.520 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=10 edlib               31.942 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=10 filter               0.877 ms/pat hits/pat=3256 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=10 filter_nofb          0.880 ms/pat hits/pat=3256 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=10 filter_fa            0.707 ms/pat hits/pat=2446 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=10 filter_fa_nofb       0.715 ms/pat hits/pat=2446 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=10 blast1               1.574 ms/pat hits/pat=21300 fb=0 rec_read=1.0 
+[stress] x=clustered ecoli536+lowcomplex k=10 blast2               2.163 ms/pat hits/pat=21300 fb=0 rec_read=1.0 
+[stress] x=clustered ecoli536+lowcomplex k=15 myers               53.446 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=15 edlib               28.774 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=15 filter              29.447 ms/pat hits/pat=28859 fb=2 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=15 filter_nofb         26.179 ms/pat hits/pat=28859 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=15 filter_fa           21.843 ms/pat hits/pat=18291 fb=1 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=15 filter_fa_nofb      19.478 ms/pat hits/pat=18291 fb=0 rec_read= 
+[stress] x=clustered ecoli536+lowcomplex k=15 blast1               1.864 ms/pat hits/pat=18886 fb=0 rec_read=1.0 
+[stress] x=clustered ecoli536+lowcomplex k=15 blast2               1.393 ms/pat hits/pat=18886 fb=0 rec_read=1.0 
+[stress] x=indel_heavy ecoli536+lowcomplex k=6 myers               52.963 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=6 edlib               40.799 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=6 filter               0.027 ms/pat hits/pat=17 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=6 filter_nofb          0.028 ms/pat hits/pat=17 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=6 filter_fa            0.043 ms/pat hits/pat=5 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=6 filter_fa_nofb       0.047 ms/pat hits/pat=5 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=6 blast1               0.051 ms/pat hits/pat=217 fb=0 rec_read=1.0 
+[stress] x=indel_heavy ecoli536+lowcomplex k=6 blast2               0.035 ms/pat hits/pat=217 fb=0 rec_read=1.0 
+[stress] x=indel_heavy ecoli536+lowcomplex k=10 myers               52.505 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=10 edlib               26.779 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=10 filter               0.955 ms/pat hits/pat=679 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=10 filter_nofb          0.955 ms/pat hits/pat=679 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=10 filter_fa            0.419 ms/pat hits/pat=248 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=10 filter_fa_nofb       0.405 ms/pat hits/pat=248 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=10 blast1               0.064 ms/pat hits/pat=201 fb=0 rec_read=1.0 
+[stress] x=indel_heavy ecoli536+lowcomplex k=10 blast2               0.024 ms/pat hits/pat=201 fb=0 rec_read=0.9 
+[stress] x=indel_heavy ecoli536+lowcomplex k=15 myers               51.123 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=15 edlib               28.289 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=15 filter              29.771 ms/pat hits/pat=33642 fb=3 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=15 filter_nofb         31.604 ms/pat hits/pat=33642 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=15 filter_fa           19.795 ms/pat hits/pat=16342 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=15 filter_fa_nofb      18.600 ms/pat hits/pat=16342 fb=0 rec_read= 
+[stress] x=indel_heavy ecoli536+lowcomplex k=15 blast1               0.054 ms/pat hits/pat=215 fb=0 rec_read=0.95 
+[stress] x=indel_heavy ecoli536+lowcomplex k=15 blast2               0.027 ms/pat hits/pat=215 fb=0 rec_read=0.6 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=6 myers               50.473 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=6 edlib               25.578 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=6 filter               0.502 ms/pat hits/pat=6878 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=6 filter_nofb          0.469 ms/pat hits/pat=6878 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=6 filter_fa            0.045 ms/pat hits/pat=12 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=6 filter_fa_nofb       0.046 ms/pat hits/pat=12 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=6 blast1               6.317 ms/pat hits/pat=99346 fb=0 rec_read=1.0 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=6 blast2               6.047 ms/pat hits/pat=99346 fb=0 rec_read=1.0 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=10 myers               51.628 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=10 edlib               26.576 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=10 filter               1.325 ms/pat hits/pat=12693 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=10 filter_nofb          1.185 ms/pat hits/pat=12693 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=10 filter_fa            2.413 ms/pat hits/pat=2839 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=10 filter_fa_nofb       2.415 ms/pat hits/pat=2839 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=10 blast1               4.623 ms/pat hits/pat=75730 fb=0 rec_read=1.0 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=10 blast2               4.410 ms/pat hits/pat=75730 fb=0 rec_read=0.95 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=15 myers               52.305 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=15 edlib               24.526 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=15 filter              22.812 ms/pat hits/pat=38737 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=15 filter_nofb         22.892 ms/pat hits/pat=38737 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=15 filter_fa           21.758 ms/pat hits/pat=26362 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=15 filter_fa_nofb      19.427 ms/pat hits/pat=26362 fb=0 rec_read= 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=15 blast1               2.288 ms/pat hits/pat=38252 fb=0 rec_read=1.0 
+[stress] x=lowcomplex_edge ecoli536+lowcomplex k=15 blast2               2.139 ms/pat hits/pat=38252 fb=0 rec_read=0.65 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=6 myers               46.723 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=6 edlib               39.223 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=6 filter               0.639 ms/pat hits/pat=17734 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=6 filter_nofb          0.583 ms/pat hits/pat=17734 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=6 filter_fa            0.569 ms/pat hits/pat=7111 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=6 filter_fa_nofb       0.665 ms/pat hits/pat=7111 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=6 blast1              14.966 ms/pat hits/pat=218083 fb=0 rec_read=1.0 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=6 blast2              14.665 ms/pat hits/pat=218083 fb=0 rec_read=1.0 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=10 myers               50.174 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=10 edlib               30.079 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=10 filter               1.678 ms/pat hits/pat=18046 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=10 filter_nofb          1.565 ms/pat hits/pat=18046 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=10 filter_fa            1.231 ms/pat hits/pat=11129 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=10 filter_fa_nofb       1.183 ms/pat hits/pat=11129 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=10 blast1               7.569 ms/pat hits/pat=103414 fb=0 rec_read=1.0 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=10 blast2               6.662 ms/pat hits/pat=103414 fb=0 rec_read=0.95 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=15 myers               49.275 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=15 edlib               34.802 ms/pat hits/pat=0 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=15 filter              23.940 ms/pat hits/pat=51356 fb=4 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=15 filter_nofb         18.321 ms/pat hits/pat=51356 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=15 filter_fa           14.622 ms/pat hits/pat=33393 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=15 filter_fa_nofb      13.643 ms/pat hits/pat=33393 fb=0 rec_read= 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=15 blast1               3.741 ms/pat hits/pat=58306 fb=0 rec_read=1.0 
+[stress] x=lowcomplex_inside ecoli536+lowcomplex k=15 blast2               4.568 ms/pat hits/pat=58306 fb=0 rec_read=0.75 
+wrote results/bench.csv with 439 rows

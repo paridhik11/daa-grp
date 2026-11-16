@@ -1,0 +1,11 @@
+[ecoli_k12_mg1655] FAIL 000 https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NC_000913.3&rettype=fasta
+[ecoli_k12_mg1655] FAIL 000 https://www.ebi.ac.uk/ena/browser/api/fasta/U00096.3
+[ecoli_k12_mg1655] FAIL 000 https://hgdownload.soe.ucsc.edu/goldenPath/eschColi_K12/bigZips/eschColi_K12.fa.gz
+[ecoli_k12_mg1655] ALL SOURCES FAILED
+[ecoli536] OK   200 https://raw.githubusercontent.com/BenLangmead/bowtie/master/genomes/NC_008253.fna
+[sarscov2] FAIL 000 https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NC_045512.2&rettype=fasta
+[sarscov2] OK   200 https://raw.githubusercontent.com/nf-core/test-datasets/modules/data/genomics/sarscov2/genome/genome.fasta
+[lambda] OK   200 https://raw.githubusercontent.com/BenLangmead/bowtie2/master/example/reference/lambda_virus.fa
+[mt_human] OK   200 https://raw.githubusercontent.com/lh3/minimap2/master/test/MT-human.fa
+[mt_orang] OK   200 https://raw.githubusercontent.com/lh3/minimap2/master/test/MT-orang.fa
+MAIN TEXT = ecoli536 (largest real bacterial genome found)
