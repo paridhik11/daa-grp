@@ -24,6 +24,8 @@ echo "== instructions per cell (cachegrind; perf hardware counters unavailable i
 python3 scripts/instr_profile.py > results/instr_profile_log.txt || echo "instr_profile failed"
 echo "== benchmarks + stress"
 python3 scripts/run_bench.py $QUICK | tee results/bench_log.txt | tail -3
+echo "== expected-case analysis (formula vs measured hits)"
+python3 scripts/expected_hits.py > results/expected_hits_log.txt
 echo "== plots + summary"
 python3 scripts/plot.py
 echo "done: results/summary.md, results/*.png, results/bench.csv"
