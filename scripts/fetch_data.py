@@ -25,6 +25,8 @@ SOURCES = {
         "https://hgdownload.soe.ucsc.edu/goldenPath/eschColi_K12/bigZips/eschColi_K12.fa.gz",
     ]),
     "ecoli536": ("bacterial", [f"{GH}/BenLangmead/bowtie/master/genomes/NC_008253.fna"]),
+    # evaluation-only genome for the blind cost-model test (never used for fitting; not eligible as main text)
+    "bfragilis": ("eval_bacterial", [f"{GH}/nf-core/test-datasets/modules/data/genomics/prokaryotes/bacteroides_fragilis/genome/genome.fna.gz"]),
     "sarscov2": ("viral", [
         "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NC_045512.2&rettype=fasta",
         f"{GH}/nf-core/test-datasets/modules/data/genomics/sarscov2/genome/genome.fasta",
@@ -69,7 +71,7 @@ def main():
     found = {}
     for name, (kind, urls) in SOURCES.items():
         for u in urls:
-            out = os.path.join(RAW, name + ".fa")
+            out = os.path.join(RAW, name + (".fa.gz" if u.endswith(".gz") else ".fa"))
             side = out + ".url"
             if os.path.exists(out) and os.path.getsize(out) > 1000 and os.path.exists(side):
                 u = open(side).read().strip()

@@ -163,7 +163,7 @@ ax.set_title("Prediction error (1 = exact)"); ax.grid(alpha=.3, which="both"); a
 save(fig, "costmodel.png")
 cm_fa_m = crossover(xs, meas_fa, meas_m); cm_fa_p = crossover(xs, pred_fa, pred_s)
 md.append("\n## Cost model (predicted vs measured), " + MAINL + "\n")
-md.append(f"Fit: {CM.get('fit', 'least squares')} on {CM.get('calibrated_on')}; evaluated here on {MAINL} (different text). "
+md.append(f"Fit: {CM.get('fit', 'least squares')} on {CM.get('calibrated_on')}; evaluated here on {MAINL} (a different text, but NOT blind: the calibration range was widened after a first fit failed on it; see the blind-evaluation section). "
           f"c_win = {CM['c_win']:.0f} ns (unconstrained least squares gave {CM.get('c_win_unconstrained', float('nan')):.0f}, so the sign constraint "
           f"{'was not' if CM['c_win'] > 0 else 'was'} active). Hit counts come from the index; windows and merged bp are estimated assuming uniform hit placement.\n")
 fmt = lambda c_: "never within tested k" if c_ is None else f"k/m = {c_:.3f} (k = {c_ * 100:.1f})"
@@ -209,6 +209,56 @@ for ax, k in zip(axs, [k_ for k_ in (4, 8, 12) if k_ in HK]):
     ax.set_title(f"k = {k} (m = 100), {MAINL}"); ax.set_xlabel("number of queries"); ax.set_ylabel("cumulative ms")
     ax.grid(alpha=.3); ax.legend(fontsize=7)
 save(fig, "breakeven.png")
+
+# ---------------------------------------------------------------- 4b. blind evaluation of the cost model on three texts
+BLIND = [("synth", "Synthetic genome X (fitted text, new reads; in-sample)", "headline_synth_insample.csv"),
+         ("ecoli", "E. coli 536 (not fitted; calibration range chosen after seeing it; NOT blind)", "headline.csv"),
+         ("bfrag", "B. fragilis (never seen before the constants were frozen; BLIND)", "headline_bfragilis.csv")]
+blind_rows = {}
+for key_, lab_, fn_ in BLIND:
+    path_ = os.path.join(RES, fn_)
+    if not os.path.exists(path_):
+        continue
+    d_ = {}
+    for r in csv.DictReader(open(path_)):
+        d_[(r["algo"], int(r["k"]))] = {k2: (v if k2 == "algo" else float(v)) for k2, v in r.items()}
+    blind_rows[key_] = (lab_, d_, sorted({k2 for _, k2 in d_}))
+if blind_rows:
+    fig, axs = plt.subplots(1, len(blind_rows), figsize=(5.4 * len(blind_rows), 4.4), squeeze=False)
+    md.append("\n## Cost model: which figures are blind and which are fitted\n")
+    md.append(f"Protocol (fixed before the blind text was read): constants are fitted by NNLS on the synthetic genome X ({CM.get('calibrated_on')}) with k up to 25, "
+              "then frozen. Prediction error = median over k of the factor max(pred/measured, measured/pred) between the median predicted and the median measured "
+              "per-read time of the pure filter (fallback off), for k where the measured median exceeds 0.01 ms. The fit was not changed after seeing any evaluation text.\n")
+    md.append("| text | status | reads per k | filter error (median / worst) | filter_fa error (median / worst) | Myers error (median) | crossover filter measured / predicted (k/m) | crossover filter_fa measured / predicted (k/m) |")
+    md.append("|---|---|---|---|---|---|---|---|")
+    for ax, (key_, (lab_, d_, ks_)) in zip(axs[0], blind_rows.items()):
+        g_ = lambda a, k_, f_: d_[(a, k_)][f_]
+        xs_ = [k_ / 100 for k_ in ks_]
+        mf = [g_("filter_nofb", k_, "t_med") for k_ in ks_]; pf_ = [g_("filter_nofb", k_, "predf_med") for k_ in ks_]
+        mfa = [g_("filter_fa_nofb", k_, "t_med") for k_ in ks_]; pfa = [g_("filter_fa_nofb", k_, "predf_med") for k_ in ks_]
+        mm = [g_("myers", k_, "t_med") for k_ in ks_]; ps_ = [g_("filter_nofb", k_, "preds_med") for k_ in ks_]
+        ax.plot(xs_, mf, "D-", color="tab:green", label="filter measured"); ax.plot(xs_, pf_, "D:", color="tab:green", label="filter predicted")
+        ax.plot(xs_, mfa, "P-", color="darkgreen", label="filter_fa measured"); ax.plot(xs_, pfa, "P:", color="darkgreen", label="filter_fa predicted")
+        ax.plot(xs_, mm, "^-", color="tab:blue", label="Myers measured"); ax.plot(xs_, ps_, "^:", color="tab:blue", label="Myers predicted")
+        cmx, cpx = crossover(xs_, mf, mm), crossover(xs_, pf_, ps_)
+        cfx, cfp = crossover(xs_, mfa, mm), crossover(xs_, pfa, ps_)
+        for c_, col_, ls_ in ((cmx, "k", "-"), (cpx, "gray", "--")):
+            if c_ is not None:
+                ax.axvline(c_, color=col_, ls=ls_, lw=1)
+        ax.set_yscale("log"); ax.set_xlabel("error rate k/m (m = 100)"); ax.set_ylabel("time per pattern (ms)"); ax.grid(alpha=.3, which="both")
+        ax.set_title(lab_, fontsize=8); ax.legend(fontsize=6)
+        def err(meas, pred):
+            r_ = sorted(max(p_ / m_, m_ / p_) for p_, m_ in zip(pred, meas) if m_ > 0.01)
+            return (r_[len(r_) // 2], r_[-1]) if r_ else (float("nan"), float("nan"))
+        ef, efa = err(mf, pf_), err(mfa, pfa)
+        em = err(mm, ps_)
+        fx = lambda c_: "never" if c_ is None else f"{c_:.3f}"
+        status = {"synth": "fitted text, new reads", "ecoli": "not fitted, range chosen after seeing it", "bfrag": "blind"}[key_]
+        md.append(f"| {lab_.split(' (')[0]} | {status} | {int(g_('myers', ks_[0], 'npat'))} | {ef[0]:.2f}x / {ef[1]:.2f}x | {efa[0]:.2f}x / {efa[1]:.2f}x | {em[0]:.2f}x | "
+                  f"{fx(cmx)} / {fx(cpx)} | {fx(cfx)} / {fx(cfp)} |")
+    save(fig, "costmodel_blind.png")
+    md.append("\nFitted: the constants themselves and the synthetic-text row. Not blind: the E. coli row (the calibration range was widened to k <= 25 after "
+              "a first fit restricted to k <= 15 failed on this text). Blind: the B. fragilis row only.\n")
 
 # ---------------------------------------------------------------- 5. cells per second
 fig, ax = plt.subplots(figsize=(7.5, 4.6))

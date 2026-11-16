@@ -32,7 +32,7 @@ Headline experiment (E. coli 536, m = 100, 100 reads per setting): values are th
 
 ## Cost model (predicted vs measured), E. coli 536
 
-Fit: NNLS (scipy.optimize.nnls) on synthetic genome_synth.txt; evaluated here on E. coli 536 (different text). c_win = 404 ns (unconstrained least squares gave 404, so the sign constraint was not active). Hit counts come from the index; windows and merged bp are estimated assuming uniform hit placement.
+Fit: NNLS (scipy.optimize.nnls) on synthetic genome_synth.txt; evaluated here on E. coli 536 (a different text, but NOT blind: the calibration range was widened after a first fit failed on it; see the blind-evaluation section). c_win = 404 ns (unconstrained least squares gave 404, so the sign constraint was not active). Hit counts come from the index; windows and merged bp are estimated assuming uniform hit placement.
 
 - Crossover filter vs Myers: measured k/m = 0.169 (k = 16.9), predicted k/m = 0.166 (k = 16.6)
 - Crossover filter_fa vs Myers: measured k/m = 0.191 (k = 19.1), predicted k/m = 0.184 (k = 18.4)
@@ -79,6 +79,18 @@ Q* = index_ms / (Myers median ms per query - filter median ms per query); the nu
 | 17 | 114 | 52.8 | 53.269 | inf | 38.339 | 6.40 |
 | 20 | 89 | 52.5 | 53.330 | inf | 52.788 | inf |
 | 30 | 120 | 52.2 | 52.653 | inf | 53.148 | inf |
+
+## Cost model: which figures are blind and which are fitted
+
+Protocol (fixed before the blind text was read): constants are fitted by NNLS on the synthetic genome X (synthetic genome_synth.txt) with k up to 25, then frozen. Prediction error = median over k of the factor max(pred/measured, measured/pred) between the median predicted and the median measured per-read time of the pure filter (fallback off), for k where the measured median exceeds 0.01 ms. The fit was not changed after seeing any evaluation text.
+
+| text | status | reads per k | filter error (median / worst) | filter_fa error (median / worst) | Myers error (median) | crossover filter measured / predicted (k/m) | crossover filter_fa measured / predicted (k/m) |
+|---|---|---|---|---|---|---|---|
+| E. coli 536 | not fitted, range chosen after seeing it | 100 | 1.21x / 1.24x | 1.24x / 2.38x | 1.02x | 0.169 / 0.166 | 0.191 / 0.184 |
+| B. fragilis | blind | 5 | 1.11x / 1.29x | 1.24x / 1.35x | 1.43x | 0.192 / 0.190 | 0.200 / 0.197 |
+
+Fitted: the constants themselves and the synthetic-text row. Not blind: the E. coli row (the calibration range was widened to k <= 25 after a first fit restricted to k <= 15 failed on this text). Blind: the B. fragilis row only.
+
 
 ## Cells updated per second, E. coli 536 (m = 100)
 

@@ -148,7 +148,7 @@ HEADLINE_FIELDS = ["k", "algo", "npat", "index_ms", "t_med", "t_p10", "t_p90", "
                    "bp_med", "bp_p10", "bp_p90", "predf_med", "preds_med", "fallbacks", "exact_ok"]
 
 
-def headline(text_path, text, ks, nreads):
+def headline(text_path, text, ks, nreads, out_name="headline.csv"):
     """E. coli 536, m = 100: filter vs filter_fa vs Myers with `nreads` reads per setting.
     Per-read time / hits / verified bp -> median and 10th/90th percentiles (results/headline.csv, ms)."""
     out = []
@@ -172,7 +172,7 @@ def headline(text_path, text, ks, nreads):
                             fallbacks=int(info["fallbacks"]), exact_ok=1))
             print(f"[headline] k={k} {algo:15s} median {P(ms, 50):9.3f} ms  p10-p90 [{P(ms, 10):.3f}, {P(ms, 90):.3f}]  "
                   f"hits(med)={P(h, 50):.0f} fb={int(info['fallbacks'])}", flush=True)
-    with open(os.path.join(RES, "headline.csv"), "w", newline="") as f:
+    with open(os.path.join(RES, out_name), "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=HEADLINE_FIELDS)
         w.writeheader(); w.writerows(out)
 
@@ -191,6 +191,10 @@ def main():
         reads = [r[0] for r in make_reads(tx, 20, 100, k, seed=11)]
         measure("error", k / 100, main_name, tp, tx, reads, k, ALL)
     headline(tp, tx, ks, 100 if not QUICK else 10)
+    # blind evaluation: cost-model constants were frozen (fitted on the synthetic genome) before this text was ever read
+    if os.path.exists(os.path.join(DATA, "bfragilis.txt")):
+        bp, bt = prefix_file("bfragilis", len(text_of("bfragilis")))
+        headline(bp, bt, ks, 100 if not QUICK else 10, out_name="headline_bfragilis.csv")
     for m in ((50, 100, 200, 400, 800) if not QUICK else (50, 200)):
         k = max(1, m // 20)
         reads = [r[0] for r in make_reads(tx, 20, m, k, seed=12)]

@@ -5,6 +5,11 @@ ecoli536
   header: gi|110640213|ref|NC_008253.1| Escherichia coli 536, complete genome
   length: 4938920 (raw 4938920), GC 0.5052
   sha256: 169aeb32aa5f16e93aa7789f8fe1ce9f19d8de4c48c1dfafd05bcf772cb2c84a
+bfragilis
+  url:    https://raw.githubusercontent.com/nf-core/test-datasets/modules/data/genomics/prokaryotes/bacteroides_fragilis/genome/genome.fna.gz
+  header: NZ_CP069563.1 Bacteroides fragilis strain FDAARGOS_1225 chromosome, complete genome
+  length: 5150703 (raw 5150703), GC 0.4322
+  sha256: 7bf0cd016c1c18e2dbc20073e8fa15173daa41b47000218bec1123c42c16ff80
 sarscov2
   url:    https://raw.githubusercontent.com/nf-core/test-datasets/modules/data/genomics/sarscov2/genome/genome.fasta
   header: MT192765.1 Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/human/USA/PC00101P/2020, complete genome

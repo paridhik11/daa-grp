@@ -55,3 +55,8 @@ cm = dict(fit="NNLS (scipy.optimize.nnls)", c_win_unconstrained=float(sol_ls[0])
           calibrated_on="synthetic genome_synth.txt", evaluated_on="E. coli 536")
 json.dump(cm, open(os.path.join(RES, "costmodel.json"), "w"), indent=1)
 print(json.dumps(cm, indent=1))
+
+# ---- in-sample prediction check: same synthetic text X, NEW reads, constants now frozen (run_bin picks up costmodel.json)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import run_bench  # noqa: E402  (headline() writes results/headline_synth_insample.csv)
+run_bench.headline(TEXT, g, [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 25], 30, out_name="headline_synth_insample.csv")
