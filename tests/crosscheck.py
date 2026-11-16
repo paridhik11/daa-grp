@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Randomised cross-checks (all against Sellers, the DP oracle).
 
-  exact   : banded, myers, filter, filter_fa must return EXACTLY Sellers' end positions
+  exact   : banded, myers, lv (Landau-Vishkin), filter, filter_fa must return EXACTLY Sellers' end positions
   heuristic: blast1, blast2 must return a SUBSET
   edlib   : edlib (HW mode, task=locations) reports the ends of the OPTIMAL alignments; it must equal
             our `myers_best` output (ends with minimum distance, if <= k) and that minimum must equal
@@ -69,7 +69,7 @@ def main(cases=300, seed=7):
             open(tf, "w").write(g + "\n")
             open(pf, "w").write("\n".join(pats) + "\n")
             ref = run("sellers", tf, pf, k)
-            for algo in ("banded", "myers", "filter", "filter_fa"):
+            for algo in ("banded", "myers", "lv", "filter", "filter_fa"):
                 got = run(algo, tf, pf, k)
                 if got != ref:
                     bad += 1

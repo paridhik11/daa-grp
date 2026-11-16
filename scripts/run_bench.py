@@ -30,15 +30,15 @@ from common import DATA, RES, run_bin  # noqa: E402
 from simulate import (inject_low_complexity, make_reads, make_reads_lowcomplex)  # noqa: E402
 
 QUICK = "--quick" in sys.argv
-NP = {"sellers": 1, "banded": 20, "myers": 20, "edlib": 20, "wfa": 5, "filter": 20, "filter_nofb": 20,
+NP = {"sellers": 1, "lv": 5, "banded": 20, "myers": 20, "edlib": 20, "wfa": 5, "filter": 20, "filter_nofb": 20,
       "filter_fa": 20, "filter_fa_nofb": 20, "blast1": 20, "blast2": 20}
 if QUICK:
     NP = {a: min(v, 3) for a, v in NP.items()}
-BIN_ALGOS = {"sellers": ("sellers", False), "banded": ("banded", False), "myers": ("myers", False),
+BIN_ALGOS = {"sellers": ("sellers", False), "lv": ("lv", False), "banded": ("banded", False), "myers": ("myers", False),
              "filter": ("filter", False), "filter_nofb": ("filter", True),
              "filter_fa": ("filter_fa", False), "filter_fa_nofb": ("filter_fa", True),
              "blast1": ("blast1", False), "blast2": ("blast2", False)}
-EXACT = {"sellers", "banded", "myers", "filter", "filter_nofb", "filter_fa", "filter_fa_nofb"}
+EXACT = {"sellers", "lv", "banded", "myers", "filter", "filter_nofb", "filter_fa", "filter_fa_nofb"}
 HEUR = {"blast1", "blast2"}
 ROWS = []
 TEXT_CACHE = {}
@@ -140,7 +140,7 @@ def measure(exp, x, dataset, text_path, text, reads, k, algos, mode="uniform", e
               f"hits/pat={row['hits_pp']:.0f} fb={row['fallbacks']} rec_read={row['recall_read']} ", flush=True)
 
 
-ALL = ["sellers", "banded", "myers", "edlib", "wfa", "filter", "filter_nofb", "filter_fa", "filter_fa_nofb", "blast1", "blast2"]
+ALL = ["sellers", "lv", "banded", "myers", "edlib", "wfa", "filter", "filter_nofb", "filter_fa", "filter_fa_nofb", "blast1", "blast2"]
 
 
 HEADLINE_ALGOS = ["myers", "filter", "filter_nofb", "filter_fa", "filter_fa_nofb"]
@@ -199,12 +199,12 @@ def main():
         k = max(1, m // 20)
         reads = [r[0] for r in make_reads(tx, 20, m, k, seed=12)]
         measure("length", m, main_name, tp, tx, reads, k,
-                ["sellers", "banded", "myers", "edlib", "wfa", "filter", "filter_fa", "blast1", "blast2"])
+                ["sellers", "lv", "banded", "myers", "edlib", "wfa", "filter", "filter_fa", "blast1", "blast2"])
     for n in ([250_000, 500_000, 1_000_000, 2_000_000, N] if not QUICK else [250_000, 1_000_000]):
         p2, t2 = prefix_file(main_name, n)
         reads = [r[0] for r in make_reads(t2, 20, 100, 5, seed=13)]
         measure("textsize", n, main_name, p2, t2, reads, 5,
-                ["sellers", "banded", "myers", "edlib", "wfa", "filter", "filter_fa", "blast1", "blast2"])
+                ["sellers", "lv", "banded", "myers", "edlib", "wfa", "filter", "filter_fa", "blast1", "blast2"])
     for ds in ("ecoli536", "sarscov2", "lambda", "mt_human") if main_name != "genome_synth" else ("genome_synth",):
         if not os.path.exists(os.path.join(DATA, ds + ".txt")):
             continue
@@ -212,7 +212,7 @@ def main():
         for k in (5, 10):
             reads = [r[0] for r in make_reads(t2, 20, 100, k, seed=14)]
             measure("datasets", ds, ds, p2, t2, reads, k,
-                    ["sellers", "myers", "edlib", "wfa", "filter", "filter_fa", "blast1", "blast2"])
+                    ["sellers", "lv", "myers", "edlib", "wfa", "filter", "filter_fa", "blast1", "blast2"])
     # ---- stress: main text with ~1% microsatellite / homopolymer arrays injected
     st_text, regions = inject_low_complexity(tx, 0.01, seed=5)
     sp = os.path.join(DATA, "stress_text.txt")

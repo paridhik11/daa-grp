@@ -3,6 +3,7 @@
 //   sellers    : Sellers (1980) DP, O(mn)                                  baseline / oracle
 //   banded     : Ukkonen (1985) cutoff DP, O(kn)
 //   myers      : Myers (1999) bit-vector (blocks), O(ceil(m/w) n)
+//   lv         : Landau-Vishkin (1989) diagonal algorithm, O(nk) expected (direct character extension)
 //   filter     : pigeonhole filter, k+1 EQUAL-length pieces  + Myers verification, cost-model fallback
 //   filter_fa  : pigeonhole filter, k+1 pieces chosen by DP to minimise total seed occurrences
 //   blast1     : BLAST-style one-hit seed (11-mer) + ungapped X-drop extension + Myers on window (heuristic)
@@ -150,6 +151,57 @@ static void myers_best(const uint8_t* T, size_t n, const Seq& P, int k, vector<s
         if (sc == best) ends.push_back(j);
     });
     if (best <= k) out.insert(out.end(), ends.begin(), ends.end());
+}
+
+
+// ---------------------------------------------------------------- 3b. Landau-Vishkin diagonal algorithm, O(nk) expected
+// L[d][e] = furthest row i (pattern characters consumed) reached on diagonal d = j - i (j = text column) with at most e
+// errors.  Row 0 is free on every diagonal d >= 0 (a match may start anywhere), D[i][0] = i makes d = -i reachable
+// from d = 0 by deletions.  Recurrence (layers e = 0..k, two arrays over diagonals):
+//     L[d][e] = slide( max( L[d][e-1] + 1,  L[d-1][e-1],  L[d+1][e-1] + 1 ) )          (substitution, insertion, deletion)
+// where slide extends along the diagonal while P[i] == T[i + d].  Diagonal d reaches the last row m with e errors
+// iff D[m][m + d] <= e, i.e. end index m + d - 1.  Extension uses direct character comparison: expected O(1) per cell on
+// random text, so O(nk) expected; worst case O(nm) (long repeats).  An LCE structure (suffix array + LCP + RMQ) would
+// give worst-case O(nk) but is NOT implemented.
+static ll lv_cells = 0;
+static void lv(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) {
+    int m = P.size();
+    ll lo = -k, hi = (ll)n - m + k;                       // diagonals that can matter
+    if (hi < lo) return;
+    size_t W = (size_t)(hi - lo + 1);
+    const int NEG = -(1 << 29);
+    vector<int> cur(W + 2, NEG), prv(W + 2, NEG);         // index = d - lo + 1 (guard cells at both ends)
+    vector<char> done(W, 0);                              // diagonal already reported
+    auto slide = [&](ll d, int i) {
+        ll j = i + d;
+        while (i < m && j < (ll)n && j >= 0 && P[i] == T[j] && T[j] < 4) { i++; j++; }
+        return i;
+    };
+    for (int e = 0; e <= k; e++) {
+        for (size_t x = 0; x < W; x++) {
+            ll d = lo + (ll)x;
+            int best = NEG;
+            if (e == 0) { if (d >= 0) best = 0; }
+            else {
+                int a = prv[x + 1] <= NEG / 2 ? NEG : prv[x + 1] + 1;      // substitution (same diagonal)
+                int b = prv[x];                                             // insertion: from diagonal d-1, row unchanged
+                int c = prv[x + 2] <= NEG / 2 ? NEG : prv[x + 2] + 1;      // deletion: from diagonal d+1, row + 1
+                best = max(a, max(b, c));
+            }
+            if (best <= NEG / 2) { cur[x + 1] = NEG; continue; }
+            if (best > m) best = m;
+            ll j = best + d;
+            if (j > (ll)n) { cur[x + 1] = NEG; continue; }              // would run past the text end
+            if (j < 0) { cur[x + 1] = NEG; continue; }
+            best = slide(d, best);
+            cur[x + 1] = best; lv_cells++;
+            if (best >= m && !done[x]) {
+                ll jend = (ll)m + d;                                        // exclusive end column
+                if (jend >= 1) { out.push_back((size_t)(jend - 1)); done[x] = 1; }
+            }
+        }
+        swap(cur, prv);
+    }
 }
 
 // ---------------------------------------------------------------- seed index (direct-address 11-mer table)
@@ -412,7 +464,7 @@ int main(int argc, char** argv) {
     gT = T.data(); gN = T.size();
 
     typedef void (*Fn)(const uint8_t*, size_t, const Seq&, int, vector<size_t>&);
-    Fn fn = algo == "sellers" ? sellers : algo == "banded" ? banded : algo == "myers" ? myers
+    Fn fn = algo == "sellers" ? sellers : algo == "banded" ? banded : algo == "myers" ? myers : algo == "lv" ? lv
           : algo == "filter" ? filter_alg : algo == "filter_fa" ? filter_fa
           : algo == "blast1" ? blast1 : algo == "blast2" ? blast2 : algo == "myers_best" ? myers_best : nullptr;
     if (!fn) { fprintf(stderr, "unknown algo %s\n", algo.c_str()); return 1; }
@@ -438,10 +490,10 @@ int main(int argc, char** argv) {
     size_t total = 0; for (auto& r : res) total += r.size();
     printf("RESULT algo=%s n=%zu patterns=%zu k=%d matches=%zu index_ms=%.3f time_ms=%.3f hits=%lld windows=%lld "
            "verified_bp=%lld fallbacks=%lld filtered=%lld gen_ms=%.3f ver_ms=%.3f sel_ms=%.3f pred_filter_ms=%.3f pred_scan_ms=%.3f "
-           "cells_banded=%lld ungapped=%lld hsps=%lld\n",
+           "cells_banded=%lld ungapped=%lld hsps=%lld lv_cells=%lld\n",
            algo.c_str(), T.size(), pats.size(), k, total, (t1 - t0) / 1e6, (t2 - t1) / 1e6, S.hits, S.windows,
            S.verified_bp, S.fallbacks, S.filtered, S.gen_ns / 1e6, S.ver_ns / 1e6, S.sel_ns / 1e6, S.pred_filter_ns / 1e6,
-           S.pred_scan_ns / 1e6, S.cells_banded, S.ungapped, S.hsps);
+           S.pred_scan_ns / 1e6, S.cells_banded, S.ungapped, S.hsps, lv_cells);
     if (dump) for (size_t i = 0; i < res.size(); i++) for (size_t e : res[i]) printf("M %zu %zu\n", i, e);
     if (times) for (size_t i = 0; i < perq.size(); i++)
         printf("T %zu %.0f %.0f %.0f %.1f %.1f %.0f\n", i, perq[i].ns, perq[i].hits, perq[i].bp, perq[i].pf, perq[i].ps, perq[i].fb);
