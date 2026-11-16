@@ -20,6 +20,7 @@ python3 tests/crosscheck.py
 APPROX_NOFALLBACK=1 python3 tests/crosscheck.py     # pure filter path, no scan fallback
 echo "== real-data cross-check of every exact algorithm vs Sellers"
 python3 tests/crosscheck_real.py
+python3 tests/test_pruned.py
 echo "== alignment output validation (CIGAR) + worked example"
 python3 tests/test_mapping.py
 python3 scripts/mapping_example.py

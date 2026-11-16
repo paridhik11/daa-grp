@@ -3,6 +3,7 @@
 //   sellers    : Sellers (1980) DP, O(mn)                                  baseline / oracle
 //   banded     : Ukkonen (1985) cutoff DP, O(kn)
 //   myers      : Myers (1999) bit-vector (blocks), O(ceil(m/w) n)
+//   myers_pruned: Myers with Ukkonen cutoff on blocks (only blocks that can hold a cell <= k are computed)
 //   lv         : Landau-Vishkin (1989) diagonal algorithm, O(nk) expected (direct character extension)
 //   filter     : pigeonhole filter, k+1 EQUAL-length pieces  + Myers verification, cost-model fallback
 //   filter_fa  : pigeonhole filter, k+1 pieces chosen by DP to minimise total seed occurrences
@@ -145,6 +146,45 @@ static void myers(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t
     MyersPat mp(P);
     myers_scan(mp, T, n, k, 0, out);
 }
+
+// ---------------------------------------------------------------- 3c. Myers with block pruning (Ukkonen cutoff on blocks)
+// Only blocks 0..y are computed.  S[b] = D[last row of block b][current column].  Invariant: every cell of the current column in
+// blocks above y has value > k.  Block y+1 is activated when S[y] <= k (a cell <= k can only enter it through its first row);
+// its state is initialised as "vertical deltas all +1" (stand-in values that are upper bounds of true values, which are > k, so they
+// can never create a wrong value <= k).  Block y is dropped when S[y] - (rows(y) - 1) > k, because vertical deltas are >= -1 so every
+// cell of the block is then > k.  Reports D[m][j] <= k only when the last block is active.  Expected active blocks: about ceil(k/64) + 1.
+static ll pruned_block_steps = 0;
+static void myers_pruned_scan(const MyersPat& mp, const uint8_t* T, size_t len, int k, size_t base, vector<size_t>& out) {
+    int B = mp.B, m = mp.m;
+    static thread_local vector<u64> PvV, MvV; static thread_local vector<int> S;
+    PvV.assign(B, ~0ULL); MvV.assign(B, 0ULL); S.assign(B, 0);
+    auto rows = [&](int b) { return b == B - 1 ? m - 64 * (B - 1) : 64; };
+    int y = 0;
+    if (k > 0) y = max(0, (min(m, k) - 1) / 64);              // blocks that contain a row i <= k at column 0 (D[i][0] = i)
+    for (int b = 0; b <= y; b++) S[b] = min(m, 64 * (b + 1));
+    u64* Pv = PvV.data(); u64* Mv = MvV.data();
+    const u64* peq = mp.peq.data();
+    for (size_t j = 0; j < len; j++) {
+        if (y < B - 1 && S[y] <= k) {                           // activate the next block
+            y++; Pv[y] = ~0ULL; Mv[y] = 0ULL; S[y] = S[y - 1] + rows(y);
+        }
+        const u64* eq = peq + (size_t)T[j] * B;
+        int hin = 0;
+        for (int b = 0; b <= y; b++) {
+            u64 high = (b == B - 1) ? mp.lastHigh : (1ULL << 63);
+            hin = advance_block(Pv[b], Mv[b], eq[b], hin, high);
+            S[b] += hin;
+        }
+        pruned_block_steps += y + 1;
+        while (y > 0 && S[y] >= k + rows(y)) y--;                // block y has no cell <= k: drop it
+        if (y == B - 1 && S[y] <= k) out.push_back(base + j);
+    }
+}
+static void myers_pruned(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) {
+    MyersPat mp(P);
+    myers_pruned_scan(mp, T, n, k, 0, out);
+}
+
 // Only the ends achieving the minimum distance, if that minimum is <= k (this is what Edlib HW reports).
 static void myers_best(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) {
     MyersPat mp(P);
@@ -574,7 +614,7 @@ int main(int argc, char** argv) {
     gT = T.data(); gN = T.size();
 
     typedef void (*Fn)(const uint8_t*, size_t, const Seq&, int, vector<size_t>&);
-    Fn fn = algo == "sellers" ? sellers : algo == "banded" ? banded : algo == "myers" ? myers : algo == "lv" ? lv
+    Fn fn = algo == "sellers" ? sellers : algo == "banded" ? banded : algo == "myers" ? myers : algo == "myers_pruned" ? myers_pruned : algo == "lv" ? lv
           : algo == "filter" ? filter_alg : algo == "filter_fa" ? filter_fa : algo == "filter_fa_w" ? filter_fa_w
           : algo == "blast1" ? blast1 : algo == "blast2" ? blast2 : algo == "map" ? filter_alg : algo == "myers_best" ? myers_best : algo == "mindist" ? mindist : nullptr;
     if (!fn) { fprintf(stderr, "unknown algo %s\n", algo.c_str()); return 1; }
@@ -600,10 +640,10 @@ int main(int argc, char** argv) {
     size_t total = 0; for (auto& r : res) total += r.size();
     printf("RESULT algo=%s n=%zu patterns=%zu k=%d matches=%zu index_ms=%.3f time_ms=%.3f hits=%lld windows=%lld "
            "verified_bp=%lld fallbacks=%lld filtered=%lld gen_ms=%.3f ver_ms=%.3f sel_ms=%.3f pred_filter_ms=%.3f pred_scan_ms=%.3f "
-           "cells_banded=%lld ungapped=%lld hsps=%lld lv_cells=%lld\n",
+           "cells_banded=%lld ungapped=%lld hsps=%lld lv_cells=%lld pruned_blocks=%lld\n",
            algo.c_str(), T.size(), pats.size(), k, total, (t1 - t0) / 1e6, (t2 - t1) / 1e6, S.hits, S.windows,
            S.verified_bp, S.fallbacks, S.filtered, S.gen_ns / 1e6, S.ver_ns / 1e6, S.sel_ns / 1e6, S.pred_filter_ns / 1e6,
-           S.pred_scan_ns / 1e6, S.cells_banded, S.ungapped, S.hsps, lv_cells);
+           S.pred_scan_ns / 1e6, S.cells_banded, S.ungapped, S.hsps, lv_cells, pruned_block_steps);
     if (dump) for (size_t i = 0; i < res.size(); i++) for (size_t e : res[i]) printf(algo == "mindist" ? "D %zu %zu\n" : "M %zu %zu\n", i, e);
     if (algo == "map") for (size_t i = 0; i < pats.size(); i++) {
         Aln al;

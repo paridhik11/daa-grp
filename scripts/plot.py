@@ -17,12 +17,12 @@ NAME = {"ecoli536": "E. coli 536", "sarscov2": "SARS-CoV-2 (MT192765.1)", "lambd
         "mt_human": "human mtDNA", "genome_synth": "synthetic genome"}
 MAIN = rows[0]["dataset"] if rows else "ecoli536"
 MAINL = NAME.get(MAIN, MAIN)
-LABEL = {"sellers": "Sellers DP", "lv": "Landau-Vishkin", "banded": "Ukkonen banded", "myers": "Myers bit-vector",
+LABEL = {"sellers": "Sellers DP", "lv": "Landau-Vishkin", "banded": "Ukkonen banded", "myers_pruned": "Myers + block pruning", "myers": "Myers bit-vector",
          "edlib": "Edlib (best match per read)", "wfa": "WFA2 (best match per read)",
          "filter": "filter, equal split", "filter_nofb": "filter, equal split (no fallback)",
          "filter_fa": "filter_fa, frequency-aware", "filter_fa_nofb": "filter_fa (no fallback)",
          "blast1": "BLAST-style one-hit", "blast2": "BLAST-style two-hit"}
-STYLE = {"sellers": ("tab:gray", "o", "-"), "lv": ("tab:olive", "h", "-"), "banded": ("tab:orange", "s", "-"), "myers": ("tab:blue", "^", "-"),
+STYLE = {"sellers": ("tab:gray", "o", "-"), "lv": ("tab:olive", "h", "-"), "banded": ("tab:orange", "s", "-"), "myers": ("tab:blue", "^", "-"), "myers_pruned": ("tab:cyan", "v", "-"),
          "edlib": ("tab:purple", "v", "--"), "wfa": ("tab:brown", "<", "--"),
          "filter": ("tab:green", "D", "-"), "filter_nofb": ("tab:green", "D", ":"),
          "filter_fa": ("darkgreen", "P", "-"), "filter_fa_nofb": ("darkgreen", "P", ":"),
@@ -103,7 +103,7 @@ md.append(f"\nHeadline experiment ({MAINL}, m = 100, {NR} reads per setting): va
 
 # ---------------------------------------------------------------- 1. time vs error (all methods)
 fig, ax = plt.subplots(figsize=(8, 5))
-for a in ["sellers", "lv", "banded", "edlib", "wfa", "blast1", "blast2"]:
+for a in ["sellers", "lv", "banded", "myers_pruned", "edlib", "wfa", "blast1", "blast2"]:
     xs, ys = series("error", a, "ms_per_pattern")
     c_, mk, ls = STYLE[a]
     ax.plot(xs, ys, color=c_, marker=mk, ls=ls, label=LABEL[a], ms=5)
@@ -344,7 +344,7 @@ save(fig, "recall_vs_error.png")
 for exp, xl, fn, ttl, logx in (("length", "pattern length m (5% error)", "time_vs_length.png", "Time vs pattern length", True),
                                ("textsize", "text length n (bp, prefixes)", "time_vs_n.png", "Time vs text size (m=100, k=5)", True)):
     fig, ax = plt.subplots(figsize=(7.5, 4.6))
-    for a in ["sellers", "lv", "banded", "myers", "edlib", "wfa", "filter", "filter_fa", "blast1", "blast2"]:
+    for a in ["sellers", "lv", "banded", "myers", "myers_pruned", "edlib", "wfa", "filter", "filter_fa", "blast1", "blast2"]:
         xs_, ys_ = series(exp, a, "ms_per_pattern")
         if xs_:
             ax.plot(xs_, ys_, color=STYLE[a][0], marker=STYLE[a][1], ls=STYLE[a][2], label=LABEL[a], ms=5)

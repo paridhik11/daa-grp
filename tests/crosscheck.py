@@ -69,7 +69,7 @@ def main(cases=300, seed=7):
             open(tf, "w").write(g + "\n")
             open(pf, "w").write("\n".join(pats) + "\n")
             ref = run("sellers", tf, pf, k)
-            for algo in ("banded", "myers", "lv", "filter", "filter_fa", "filter_fa_w"):
+            for algo in ("banded", "myers", "myers_pruned", "lv", "filter", "filter_fa", "filter_fa_w"):
                 got = run(algo, tf, pf, k)
                 if got != ref:
                     bad += 1
