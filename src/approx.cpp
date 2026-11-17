@@ -4,7 +4,9 @@
 //   banded     : Ukkonen (1985) cutoff DP, O(kn)
 //   myers      : Myers (1999) bit-vector (blocks), O(ceil(m/w) n)
 //   myers_pruned: Myers with Ukkonen cutoff on blocks (only blocks that can hold a cell <= k are computed)
-//   lv         : Landau-Vishkin (1989) diagonal algorithm, O(nk) expected (direct character extension)
+//   lv         : Landau-Vishkin (1989) diagonal algorithm, O(nk) expected (2-bit packed text, XOR + ctz extension, temporal blocking)
+//   lv_stream  : packed extension, layers streamed over the whole text (intermediate variant)
+//   lv_direct  : the same with direct character comparison (the earlier implementation, kept for comparison)
 //   filter     : pigeonhole filter, k+1 EQUAL-length pieces  + Myers verification, cost-model fallback
 //   filter_fa  : pigeonhole filter, k+1 pieces chosen by DP to minimise total seed occurrences
 //   filter_auto: per query, the cost model picks equal split, frequency-aware split (fast selection) or a full Myers scan
@@ -24,6 +26,10 @@
 //        APPROX_CM="c_hit,c_win,c_bp,a_scan,c_sel" cost-model constants in ns (see scripts/calibrate.py)
 #include <bits/stdc++.h>
 #include <malloc.h>
+#if defined(__AVX512F__) && defined(__AVX512CD__) && defined(__AVX512VL__)
+#include <immintrin.h>
+#define LV_SIMD 1
+#endif
 using namespace std;
 typedef unsigned long long u64;
 typedef vector<uint8_t> Seq;
@@ -216,7 +222,7 @@ static void myers_best(const uint8_t* T, size_t n, const Seq& P, int k, vector<s
 // random text, so O(nk) expected; worst case O(nm) (long repeats).  An LCE structure (suffix array + LCP + RMQ) would
 // give worst-case O(nk) but is NOT implemented.
 static ll lv_cells = 0;
-static void lv(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) {
+static void lv_direct(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) {   // original: direct character comparison, kept for comparison
     int m = P.size();
     ll lo = -k, hi = (ll)n - m + k;                       // diagonals that can matter
     if (hi < lo) return;
@@ -253,6 +259,216 @@ static void lv(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& 
             }
         }
         swap(cur, prv);
+    }
+}
+
+
+// ---------------------------------------------------------------- 3b'. Landau-Vishkin with 2-bit packed text and pattern, XOR + ctz extension
+// Same recurrence as lv_direct, restructured for speed:
+//  * text packed 2 bits per base (32 bases per u64, built once per text); every pattern window P[i..i+32) precomputed once per read;
+//  * extension = XOR of the two 32-base windows and count-trailing-zeros (a mismatch is the lowest set 2-bit group), no per-character loop
+//    and no data-dependent branch in the common case;
+//  * the layer step runs in tiles of 2048 diagonals: pass 1 (auto-vectorised) computes the three-way maximum into a small buffer,
+//    pass 2 does the branch-free extension;
+//  * N (code 4) is handled exactly: packed N is code 0, so the extension is truncated at the first N of the text (sorted position list)
+//    and of the pattern (next-N table); both fix-ups are skipped when there is no N.
+static vector<u64> g_T2; static vector<uint32_t> g_Npos; static const uint8_t* g_T2src = nullptr;
+static inline u64 get32(const u64* a, size_t pos) {   // 32 bases starting at base index pos
+    size_t w = pos >> 5; unsigned sft = (pos & 31) * 2;
+    return (a[w] >> sft) | ((a[w + 1] << 1) << (63 - sft));
+}
+static void build_T2(const uint8_t* T, size_t n) {
+    if (g_T2src == T) return;
+    g_T2.assign(n / 32 + 3, 0); g_Npos.clear();
+    for (size_t i = 0; i < n; i++) { u64 c = T[i]; if (c > 3) { g_Npos.push_back((uint32_t)i); c = 0; } g_T2[i >> 5] |= c << ((i & 31) * 2); }
+    g_T2src = T;
+}
+static void lv_stream(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) {   // packed extension, layers streamed over the whole text
+    int m = P.size();
+    ll lo = -k, hi = (ll)n - m + k;
+    if (hi < lo) return;
+    size_t W = (size_t)(hi - lo + 1);
+    build_T2(T, n);
+    const u64* T2 = g_T2.data(); const bool hasN = !g_Npos.empty();
+    vector<u64> P2((m >> 5) + 3, 0); bool pHasN = false;
+    for (int i = 0; i < m; i++) { u64 c = P[i]; if (c > 3) { pHasN = true; c = 0; } P2[i >> 5] |= c << ((i & 31) * 2); }
+    vector<u64> PW(m + 1);
+    for (int i = 0; i <= m; i++) PW[i] = get32(P2.data(), i);
+    vector<int> pnext;
+    if (pHasN) { pnext.assign(m + 1, m); for (int i = m - 1; i >= 0; i--) pnext[i] = P[i] > 3 ? i : pnext[i + 1]; }
+    const int NEG = -(1 << 29);
+    vector<int> cur(W + 2, NEG), prv(W + 2, NEG);
+    const size_t TILE = 2048;
+    int cand[TILE];
+    for (int e = 0; e <= k; e++) {
+        for (size_t x0 = 0; x0 < W; x0 += TILE) {
+            size_t tn = min(TILE, W - x0);
+            if (e == 0) { for (size_t t = 0; t < tn; t++) cand[t] = (lo + (ll)(x0 + t) >= 0) ? 0 : NEG; }
+            else {
+                const int* pv = prv.data() + x0;
+                for (size_t t = 0; t < tn; t++) { int a = pv[t + 1] + 1, b = pv[t], c = pv[t + 2] + 1; int v = max(a, max(b, c)); cand[t] = min(v, m); }
+            }
+            for (size_t t = 0; t < tn; t++) {
+                ll d = lo + (ll)(x0 + t); int i = cand[t]; ll j = i + d;
+                bool valid = (i >= 0) & (j <= (ll)n) & (j >= 0);
+                int ii = valid ? i : 0; size_t jj = valid ? (size_t)j : 0;
+                u64 xr = PW[ii] ^ get32(T2, jj);
+                int ext = xr ? (__builtin_ctzll(xr) >> 1) : 32;
+                if (ext == 32) {                                      // all 32 bases equal: continue block by block (rare on random text)
+                    while (true) {
+                        size_t ip = ii + ext, jp = jj + ext;
+                        if (ip >= (size_t)m || jp >= n) break;
+                        u64 x2 = get32(P2.data(), ip) ^ get32(T2, jp);
+                        if (x2) { ext += __builtin_ctzll(x2) >> 1; break; }
+                        ext += 32;
+                    }
+                }
+                ext = min(ext, min(m - ii, (int)min<size_t>(n - jj, (size_t)m)));
+                if (hasN) { auto it = lower_bound(g_Npos.begin(), g_Npos.end(), (uint32_t)jj); if (it != g_Npos.end() && (ll)*it - (ll)jj < ext) ext = (int)((ll)*it - (ll)jj); }
+                if (pHasN) ext = min(ext, pnext[ii] - ii);
+                int row = valid ? ii + ext : NEG;
+                cur[x0 + t + 1] = row;
+                if (row >= m) {                                       // reached the last row: report once (first layer that gets there)
+                    bool already = (e > 0) && prv[x0 + t + 1] >= m;
+                    ll jend = (ll)m + d;
+                    if (!already && jend >= 1) out.push_back((size_t)(jend - 1));
+                }
+            }
+        }
+        lv_cells += (ll)W;
+        swap(cur, prv);
+        cur[0] = NEG; cur[W + 1] = NEG;
+    }
+}
+
+
+// Final version: the same packed extension, but with TEMPORAL BLOCKING.  A chunk of C = 2048 diagonals is carried through all k + 1 layers
+// in two small buffers that stay in L1; at layer e the chunk needs the diagonals [x0 - (k - e), x1 + (k - e)) because layer e reads the
+// neighbours of layer e - 1 (a trapezoid, recomputing about 2k cells per chunk, 3% at k = 30).  Only cells inside [x0, x1) are reported.
+// This removes the 40 MB per layer that lv_stream moves through memory.
+static int LV_USE_SIMD = 1;   // env APPROX_LVSIMD=0 forces the scalar cell loop
+static void lv(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) {
+    int m = P.size();
+    ll lo = -k, hi = (ll)n - m + k;
+    if (hi < lo) return;
+    ll W = hi - lo + 1;
+    build_T2(T, n);
+    const u64* T2 = g_T2.data(); const bool hasN = !g_Npos.empty();
+    vector<u64> P2((m >> 5) + 3, 0); bool pHasN = false;
+    for (int i = 0; i < m; i++) { u64 c = P[i]; if (c > 3) { pHasN = true; c = 0; } P2[i >> 5] |= c << ((i & 31) * 2); }
+    vector<u64> PW(m + 1);
+    for (int i = 0; i <= m; i++) PW[i] = get32(P2.data(), i);
+    vector<int> pnext;
+    if (pHasN) { pnext.assign(m + 1, m); for (int i = m - 1; i >= 0; i--) pnext[i] = P[i] > 3 ? i : pnext[i + 1]; }
+    const int NEG = -(1 << 29);
+    const ll C = 2048;
+    const size_t LS = (size_t)(C + 2 * k + 4);
+    static thread_local vector<int> bufA, bufB, candv;
+    bufA.assign(LS, NEG); bufB.assign(LS, NEG); candv.assign(LS, 0);
+    for (ll x0 = 0; x0 < W; x0 += C) {
+        ll x1 = min(W, x0 + C), b0 = x0 - k;              // local index of diagonal x is x - b0 + 1
+        fill(bufA.begin(), bufA.end(), NEG); fill(bufB.begin(), bufB.end(), NEG);
+        int* prv = bufA.data(); int* cur = bufB.data(); int* cand = candv.data();
+        for (int e = 0; e <= k; e++) {
+            ll xa = max(0LL, x0 - (k - e)), xb = min(W, x1 + (k - e));
+            size_t tn = (size_t)(xb - xa);
+            if (e == 0) { for (size_t t = 0; t < tn; t++) cand[t] = (lo + xa + (ll)t >= 0) ? 0 : NEG; }
+            else {
+                const int* pv = prv + (xa - b0);            // pv[t + 1] = diagonal xa + t of layer e - 1
+                for (size_t t = 0; t < tn; t++) { int a = pv[t + 1] + 1, b = pv[t], c = pv[t + 2] + 1; int v = max(a, max(b, c)); cand[t] = min(v, m); }
+            }
+            int* cu = cur + (xa - b0 + 1);
+            const int* pr = prv + (xa - b0 + 1);
+            auto scalar_cell = [&](size_t t) {
+                ll d = lo + xa + (ll)t; int i = cand[t]; ll j = i + d;
+                bool valid = (i >= 0) & (j <= (ll)n) & (j >= 0);
+                int ii = valid ? i : 0; size_t jj = valid ? (size_t)j : 0;
+                u64 xr = PW[ii] ^ get32(T2, jj);
+                int ext = xr ? (__builtin_ctzll(xr) >> 1) : 32;
+                if (ext == 32) {
+                    while (true) {
+                        size_t ip = ii + ext, jp = jj + ext;
+                        if (ip >= (size_t)m || jp >= n) break;
+                        u64 x2 = get32(P2.data(), ip) ^ get32(T2, jp);
+                        if (x2) { ext += __builtin_ctzll(x2) >> 1; break; }
+                        ext += 32;
+                    }
+                }
+                ext = min(ext, min(m - ii, (int)min<size_t>(n - jj, (size_t)m)));
+                if (hasN) { auto it = lower_bound(g_Npos.begin(), g_Npos.end(), (uint32_t)jj); if (it != g_Npos.end() && (ll)*it - (ll)jj < ext) ext = (int)((ll)*it - (ll)jj); }
+                if (pHasN) ext = min(ext, pnext[ii] - ii);
+                int row = valid ? ii + ext : NEG;
+                cu[t] = row;
+                if (row >= m) {
+                    ll x = xa + (ll)t;
+                    if (x >= x0 && x < x1) {
+                        bool already = (e > 0) && pr[t] >= m;
+                        ll jend = (ll)m + d;
+                        if (!already && jend >= 1) out.push_back((size_t)(jend - 1));
+                    }
+                }
+            };
+            size_t t = 0;
+#ifdef LV_SIMD
+            if (LV_USE_SIMD && !hasN && !pHasN) {
+                const __m512i zero = _mm512_setzero_si512(), nvec = _mm512_set1_epi64((ll)n), mvec = _mm512_set1_epi64(m);
+                const __m512i three = _mm512_set1_epi64(3), mask58 = _mm512_set1_epi64((1LL << 58) - 1), c63 = _mm512_set1_epi64(63);
+                const __m512i lanes = _mm512_set_epi64(7, 6, 5, 4, 3, 2, 1, 0), negv = _mm512_set1_epi64(NEG), c29 = _mm512_set1_epi64(29);
+                const unsigned char* T2b = (const unsigned char*)T2;
+                for (; t + 8 <= tn; t += 8) {
+                    __m512i vd = _mm512_add_epi64(_mm512_set1_epi64(lo + xa + (ll)t), lanes);
+                    __m512i vi = _mm512_cvtepi32_epi64(_mm256_loadu_si256((const __m256i*)(cand + t)));
+                    __m512i vj = _mm512_add_epi64(vi, vd);
+                    __mmask8 valid = _mm512_cmpge_epi64_mask(vi, zero) & _mm512_cmple_epi64_mask(vj, nvec) & _mm512_cmpge_epi64_mask(vj, zero);
+                    vi = _mm512_maskz_mov_epi64(valid, vi); vj = _mm512_maskz_mov_epi64(valid, vj);
+                    __m512i pw = _mm512_i64gather_epi64(vi, (const long long*)PW.data(), 8);
+                    __m512i boff = _mm512_srli_epi64(vj, 2);
+                    __m512i sh = _mm512_slli_epi64(_mm512_and_si512(vj, three), 1);
+                    __m512i tw = _mm512_srlv_epi64(_mm512_i64gather_epi64(boff, (const long long*)T2b, 1), sh);
+                    __m512i x = _mm512_and_si512(_mm512_xor_si512(pw, tw), mask58);
+                    __m512i low = _mm512_and_si512(x, _mm512_sub_epi64(zero, x));
+                    __m512i ext = _mm512_srli_epi64(_mm512_sub_epi64(c63, _mm512_lzcnt_epi64(low)), 1);
+                    __mmask8 allEq = _mm512_cmpeq_epi64_mask(x, zero);
+                    ext = _mm512_mask_mov_epi64(ext, allEq, c29);
+                    ext = _mm512_min_epi64(ext, _mm512_min_epi64(_mm512_sub_epi64(mvec, vi), _mm512_sub_epi64(nvec, vj)));
+                    alignas(64) ll ea[8], ia[8], ja[8];
+                    __mmask8 cont = allEq & _mm512_cmpeq_epi64_mask(ext, c29);   // all 29 bases equal and not limited by the ends: continue per lane
+                    if (cont) {
+                        _mm512_store_si512(ea, ext); _mm512_store_si512(ia, vi); _mm512_store_si512(ja, vj);
+                        for (int l = 0; l < 8; l++) if (cont >> l & 1) {
+                            size_t ii = (size_t)ia[l], jj = (size_t)ja[l]; int ex = 29;
+                            while (true) {
+                                size_t ip = ii + ex, jp = jj + ex;
+                                if (ip >= (size_t)m || jp >= n) break;
+                                u64 x2 = get32(P2.data(), ip) ^ get32(T2, jp);
+                                if (x2) { ex += __builtin_ctzll(x2) >> 1; break; }
+                                ex += 32;
+                            }
+                            ex = min(ex, (int)min((ll)(m - (ll)ii), (ll)(n - jj)));
+                            ea[l] = ex;
+                        }
+                        ext = _mm512_load_si512(ea);
+                    }
+                    __m512i row = _mm512_mask_blend_epi64(valid, negv, _mm512_add_epi64(vi, ext));
+                    _mm256_storeu_si256((__m256i*)(cu + t), _mm512_cvtepi64_epi32(row));
+                    __mmask8 rep = valid & _mm512_cmpge_epi64_mask(row, mvec);
+                    if (rep) {
+                        for (int l = 0; l < 8; l++) if (rep >> l & 1) {
+                            ll x = xa + (ll)t + l;
+                            if (x >= x0 && x < x1) {
+                                bool already = (e > 0) && pr[t + l] >= m;
+                                ll jend = (ll)m + lo + xa + (ll)t + l;
+                                if (!already && jend >= 1) out.push_back((size_t)(jend - 1));
+                            }
+                        }
+                    }
+                }
+            }
+#endif
+            for (; t < tn; t++) scalar_cell(t);
+            lv_cells += (ll)tn;
+            swap(cur, prv);
+        }
     }
 }
 
@@ -784,6 +1000,7 @@ int main(int argc, char** argv) {
     for (int a = 5; a < argc; a++) { if (string(argv[a]) == "--dump") dump = true; if (string(argv[a]) == "--times") times = true; }
     if (getenv("APPROX_NOFALLBACK")) g_nofallback = atoi(getenv("APPROX_NOFALLBACK")) != 0;
     if (const char* wc = getenv("APPROX_WCAP")) WCAP = atoi(wc);
+    if (const char* e = getenv("APPROX_LVSIMD")) LV_USE_SIMD = atoi(e);
     if (const char* e = getenv("APPROX_SEL")) SELMODE = atoi(e);
     if (const char* e = getenv("APPROX_CAP")) SELCAP = atoi(e);
     if (const char* e = getenv("APPROX_OCCSMALL")) OCC_SMALL = atoi(e);
@@ -800,7 +1017,7 @@ int main(int argc, char** argv) {
     long loaded_kb = cur_rss_kb();   // steady RSS after loading text and patterns (transient read buffers returned)
 
     typedef void (*Fn)(const uint8_t*, size_t, const Seq&, int, vector<size_t>&);
-    Fn fn = algo == "sellers" ? sellers : algo == "banded" ? banded : algo == "myers" ? myers : algo == "myers_pruned" ? myers_pruned : algo == "lv" ? lv
+    Fn fn = algo == "sellers" ? sellers : algo == "banded" ? banded : algo == "myers" ? myers : algo == "myers_pruned" ? myers_pruned : algo == "lv" ? lv : algo == "lv_stream" ? lv_stream : algo == "lv_direct" ? lv_direct
           : algo == "filter" ? filter_alg : algo == "filter_fa" ? filter_fa : algo == "filter_fa_w" ? filter_fa_w : algo == "filter_auto" ? filter_auto : algo == "filter_fa_full" ? filter_fa_full
           : algo == "blast1" ? blast1 : algo == "blast2" ? blast2 : algo == "map" ? filter_alg : algo == "myers_best" ? myers_best : algo == "mindist" ? mindist : algo == "noop" ? noop_alg : nullptr;
     if (!fn) { fprintf(stderr, "unknown algo %s\n", algo.c_str()); return 1; }
