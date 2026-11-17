@@ -154,7 +154,28 @@ static inline void myers_columns(const MyersPat& mp, const uint8_t* T, size_t le
     }
 }
 
+// Single-word fast path (m <= 64, one block): all state in registers, no vectors, no carry bookkeeping.  Same recurrence as advance_block with
+// hin = 0.  Used by plain Myers and by the pruned scan (with one block there is nothing to prune).  Peq is built once per read (MyersPat).
+static void myers_scan_1(const MyersPat& mp, const uint8_t* T, size_t len, int k, size_t base, vector<size_t>& out) {
+    const u64* peq = mp.peq.data();
+    u64 Pv = ~0ULL, Mv = 0; int score = mp.m; const int sh = mp.m - 1;
+    for (size_t j = 0; j < len; j++) {
+        u64 Eq = peq[T[j]];
+        u64 Xv = Eq | Mv;
+        u64 Xh = (((Eq & Pv) + Pv) ^ Pv) | Eq;
+        u64 Ph = Mv | ~(Xh | Pv);
+        u64 Mh = Pv & Xh;
+        score += (int)((Ph >> sh) & 1) - (int)((Mh >> sh) & 1);
+        Ph <<= 1; Mh <<= 1;
+        Pv = Mh | ~(Xv | Ph);
+        Mv = Ph & Xv;
+        if (score <= k) out.push_back(base + j);
+    }
+}
+static int MYERS_FAST1 = 1;   // env APPROX_FAST1=0 disables the single-word fast path (for before/after timing)
+
 static void myers_scan(const MyersPat& mp, const uint8_t* T, size_t len, int k, size_t base, vector<size_t>& out) {
+    if (MYERS_FAST1 && mp.B == 1) { myers_scan_1(mp, T, len, k, base, out); return; }
     myers_columns(mp, T, len, [&](size_t j, int sc) { if (sc <= k) out.push_back(base + j); });
 }
 static void myers(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) {
@@ -170,6 +191,7 @@ static void myers(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t
 // cell of the block is then > k.  Reports D[m][j] <= k only when the last block is active.  Expected active blocks: about ceil(k/64) + 1.
 static ll pruned_block_steps = 0;
 static void myers_pruned_scan(const MyersPat& mp, const uint8_t* T, size_t len, int k, size_t base, vector<size_t>& out) {
+    if (MYERS_FAST1 && mp.B == 1) { myers_scan_1(mp, T, len, k, base, out); return; }   // one block: nothing to prune
     int B = mp.B, m = mp.m;
     static thread_local vector<u64> PvV, MvV; static thread_local vector<int> S;
     PvV.assign(B, ~0ULL); MvV.assign(B, 0ULL); S.assign(B, 0);
@@ -1001,6 +1023,7 @@ int main(int argc, char** argv) {
     if (getenv("APPROX_NOFALLBACK")) g_nofallback = atoi(getenv("APPROX_NOFALLBACK")) != 0;
     if (const char* wc = getenv("APPROX_WCAP")) WCAP = atoi(wc);
     if (const char* e = getenv("APPROX_LVSIMD")) LV_USE_SIMD = atoi(e);
+    if (const char* e = getenv("APPROX_FAST1")) MYERS_FAST1 = atoi(e);
     if (const char* e = getenv("APPROX_SEL")) SELMODE = atoi(e);
     if (const char* e = getenv("APPROX_CAP")) SELCAP = atoi(e);
     if (const char* e = getenv("APPROX_OCCSMALL")) OCC_SMALL = atoi(e);
