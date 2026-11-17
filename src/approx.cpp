@@ -7,6 +7,8 @@
 //   lv         : Landau-Vishkin (1989) diagonal algorithm, O(nk) expected (direct character extension)
 //   filter     : pigeonhole filter, k+1 EQUAL-length pieces  + Myers verification, cost-model fallback
 //   filter_fa  : pigeonhole filter, k+1 pieces chosen by DP to minimise total seed occurrences
+//   filter_auto: per query, the cost model picks equal split, frequency-aware split (fast selection) or a full Myers scan
+//   filter_fa_full: filter_fa with the original (slow) seed-selection DP, kept for comparison
 //   filter_fa_w: as filter_fa but the DP minimises hits + lambda * windows (windows made by each seed's own hits)
 //   blast1     : BLAST-style one-hit seed (11-mer) + ungapped X-drop extension + Myers on window (heuristic)
 //   blast2     : same with BLAST two-hit trigger (two non-overlapping seeds on one diagonal, window A=40)
@@ -40,9 +42,15 @@ struct Stats {
     ll hits = 0, windows = 0, verified_bp = 0, fallbacks = 0, filtered = 0;
     ll cells_banded = 0;         // DP cells actually computed by the banded algorithm
     ll ungapped = 0, hsps = 0;   // heuristic: extensions tried / HSPs above cutoff
+    ll auto_skip = 0, auto_eq = 0, auto_fa = 0, auto_scan = 0;   // filter_auto decisions (skip = DP not run)
     double gen_ns = 0, ver_ns = 0, sel_ns = 0, pred_filter_ns = 0, pred_scan_ns = 0;
 } S;
 static bool g_nofallback = false;
+static int SELMODE = 2;    // seed selection: 0 = original DP (all lengths, per-seed lookups), 1 = prefix tables + reused buffers (all lengths), 2 = tables + capped lengths (env APPROX_SEL)
+static int SELCAP = 2;     // mode 2: seed lengths in [s0 - cap, min(11, s0 + cap)], s0 = min(floor(m/(k+1)), 11) (env APPROX_CAP)
+static double AUTO_SKIP = 1.0;   // filter_auto: skip the DP when predicted equal-split cost <= AUTO_SKIP * estimated selection cost (1.0: the DP cannot save more than the whole equal-split cost) (env APPROX_AUTOSKIP)
+static int g_debug = 0;
+static double g_sel_nsop = 4.0;  // online estimate of seed-selection ns per DP unit (updated after every selection)
 static int WCAP = 20000;   // filter_fa_w: seeds with more hits than this are charged one window per hit (env APPROX_WCAP)
 static double CM_HIT = 40, CM_WIN = 150, CM_BP = 6, CM_SCAN = 6, CM_SEL = 15;  // ns; overridden by APPROX_CM
 
@@ -262,6 +270,7 @@ struct Index {
     int s = 0;
     vector<uint32_t> start, pos;  // CSR: occurrences of 11-mer c are pos[start[c] .. start[c+1])
     vector<uint32_t> bad;         // text positions p whose s-mer is NOT indexed (tail, or contains N)
+    vector<uint32_t> cntL[11];    // cntL[L][c] = occurrences of the L-mer c (6 <= L <= 10): precomputed prefix counts for seed selection
     void build(const uint8_t* T, size_t n, int s_) {
         s = s_;
         size_t SZ = (size_t)1 << (2 * s);
@@ -281,6 +290,11 @@ struct Index {
         vector<uint32_t> fill(start.begin(), start.end() - 1);
         scan([&](u64 h, size_t p) { pos[fill[h]++] = p; });
         for (size_t p = 0; p < n; p++) if (!indexed[p]) bad.push_back(p);
+        for (int L = 6; L <= 10 && L < s; L++) {                       // counts of every L-mer from the CSR offsets (4^L entries each)
+            int sh = 2 * (s - L); size_t cnt_n = (size_t)1 << (2 * L);
+            cntL[L].resize(cnt_n);
+            for (size_t c = 0; c < cnt_n; c++) cntL[L][c] = start[(c + 1) << sh] - start[c << sh];
+        }
     }
 };
 static const uint8_t* gT; static size_t gN;
@@ -381,63 +395,215 @@ static bool select_fa(const Index& ix, const Seq& P, int k, vector<Seed>& seeds,
     return true;
 }
 
+// ---- fast seed selection: precomputed prefix counts, capped piece lengths, reused buffers (hits objective)
+static inline uint32_t seed_count_fast(const Index& ix, int L, u64 c) {
+    if (L == 11) return ix.start[c + 1] - ix.start[c];
+    if (L >= 6) return ix.cntL[L][c];
+    int sh = 2 * (ix.s - L);
+    return ix.start[(c + 1) << sh] - ix.start[c << sh];
+}
+static void sel_range(int m, int k, int cap, int& Lmin, int& Lmax) {
+    int s0 = min(m / (k + 1), SMAX);
+    Lmin = cap >= SMAX ? 1 : max(1, s0 - cap);
+    Lmax = cap >= SMAX ? SMAX : min(SMAX, s0 + cap);
+}
+static double sel_ops(int m, int k, int cap) {   // DP units: count table m*nL lookups + (k+1)*m*nL transitions
+    int Lmin, Lmax; sel_range(m, k, cap, Lmin, Lmax);
+    double nL = Lmax - Lmin + 1;
+    return (double)m * nL + (double)(k + 1) * m * nL;
+}
+static bool select_fa_fast(const Index& ix, const Seq& P, int k, vector<Seed>& seeds, int cap) {
+    int m = P.size(), J = k + 1;
+    if (m < J) return false;
+    int Lmin, Lmax; sel_range(m, k, cap, Lmin, Lmax);
+    int nL = Lmax - Lmin + 1;
+    static thread_local vector<uint32_t> cnt; static thread_local vector<int64_t> f; static thread_local vector<int8_t> bp;
+    static thread_local vector<int> nPre;
+    cnt.assign((size_t)m * nL, 0);
+    nPre.assign(m + 1, 0);
+    for (int i = 0; i < m; i++) nPre[i + 1] = nPre[i] + (P[i] > 3);
+    for (int a = 0; a + Lmin <= m; a++) {
+        u64 c = 0;
+        for (int t = 0; t < Lmin; t++) c = (c << 2) | (P[a + t] & 3);
+        int top = min(Lmax, m - a);
+        for (int L = Lmin; L <= top; L++) {
+            if (L > Lmin) c = (c << 2) | (P[a + L - 1] & 3);
+            if (nPre[a + L] - nPre[a] == 0) cnt[(size_t)a * nL + (L - Lmin)] = seed_count_fast(ix, L, c);   // a seed containing N has no occurrence: cost 0
+        }
+    }
+    const int64_t INF = (int64_t)4e18;
+    size_t W1 = m + 1;
+    f.assign((size_t)(J + 1) * W1, INF); bp.assign((size_t)(J + 1) * W1, 0);
+    for (int i = 0; i <= m; i++) f[i] = 0;
+    for (int j = 1; j <= J; j++) {
+        int64_t* fj = &f[(size_t)j * W1]; const int64_t* fp = &f[(size_t)(j - 1) * W1]; int8_t* bj = &bp[(size_t)j * W1];
+        for (int i = j * Lmin; i <= m; i++) {
+            int64_t best = fj[i - 1]; int8_t ch = 0;
+            for (int L = Lmin; L <= Lmax && L <= i; L++) {
+                int64_t prev = fp[i - L];
+                if (prev >= INF) continue;
+                int64_t v = prev + cnt[(size_t)(i - L) * nL + (L - Lmin)];
+                if (v < best) { best = v; ch = (int8_t)L; }
+            }
+            fj[i] = best; bj[i] = ch;
+        }
+    }
+    if (f[(size_t)J * W1 + m] >= INF) return false;
+    seeds.clear();
+    int i = m, j = J;
+    while (j > 0) {
+        int8_t ch = bp[(size_t)j * W1 + i];
+        if (ch == 0) i--;
+        else { seeds.push_back({i - ch, (int)ch}); i -= ch; j--; }
+    }
+    reverse(seeds.begin(), seeds.end());
+    return true;
+}
+
+// ---- seed set: index ranges (plus brute-force hits at un-indexed positions) and the hit total H
+struct SeedSet { vector<Seed> seeds; vector<uint32_t> lo, hi; vector<char> ok; vector<vector<uint32_t>> bad; ll H = 0; bool bad_done = false; };
+static void collect_ranges(const Index& ix, const Seq& P, SeedSet& ss) {   // index ranges only (cheap: 2 lookups per seed)
+    size_t ns = ss.seeds.size();
+    ss.lo.assign(ns, 0); ss.hi.assign(ns, 0); ss.ok.assign(ns, 0); ss.H = 0; ss.bad_done = false;
+    for (size_t i = 0; i < ns; i++) {
+        u64 c; ss.ok[i] = seed_range(ix, P, ss.seeds[i], ss.lo[i], ss.hi[i], c);
+        if (ss.ok[i]) ss.H += ss.hi[i] - ss.lo[i];
+    }
+}
+static void add_bad(const Index& ix, const uint8_t* T, size_t n, const Seq& P, SeedSet& ss) {   // hits at the few un-indexed text positions (tail, N)
+    if (ss.bad_done) return;
+    ss.bad_done = true; ss.bad.assign(ss.seeds.size(), vector<uint32_t>());
+    if (ix.bad.empty()) return;
+    for (size_t i = 0; i < ss.seeds.size(); i++) {
+        if (!ss.ok[i]) continue;
+        for (uint32_t p : ix.bad) {
+            if (p + ss.seeds[i].len > n) continue;
+            bool eq = true;
+            for (int t = 0; t < ss.seeds[i].len; t++) if (T[p + t] != P[ss.seeds[i].a + t] || T[p + t] > 3) { eq = false; break; }
+            if (eq) ss.bad[i].push_back(p);
+        }
+        ss.H += ss.bad[i].size();
+    }
+}
+static void collect(const Index& ix, const uint8_t* T, size_t n, const Seq& P, SeedSet& ss) { collect_ranges(ix, P, ss); add_bad(ix, T, n, P, ss); }
+static double model_cost(ll H, int m, int k, int B, size_t n) {   // cost model, stage 1: expected merged windows / bases under uniform hit placement
+    double Lw = m + 2.0 * k, lam = (double)H * Lw / (double)n;
+    return CM_HIT * H + CM_WIN * H * exp(-lam) + CM_BP * B * n * (1.0 - exp(-lam));
+}
+// cost model with MEASURED occupancy: hits are dropped into bins of width m + 2k by diagonal; occupied bins estimate the verified length
+// and runs of occupied bins the merged windows.  For uniformly placed hits this equals the Poisson estimate of model_cost; for clustered
+// hits (repeats, low-complexity) it sees that they merge into few windows.  O(H).
+static int OCC_SMALL = 64;   // below this many hits every hit is charged its own window (no bins): O(1) (env APPROX_OCCSMALL)
+static double occupancy_cost(const Index& ix, const SeedSet& ss, int m, int k, int B, size_t n) {
+    ll Lw = m + 2LL * k; size_t nb = n / Lw + 2;
+    if (ss.H <= OCC_SMALL) return ss.H * (CM_HIT + CM_WIN + CM_BP * B * (double)Lw);
+    static thread_local vector<u64> bits;
+    bits.assign((nb + 63) / 64 + 1, 0);
+    const u64 inv = ((1ULL << 32) + Lw - 1) / Lw;      // bin = d / Lw via multiply (exact enough for an estimate)
+    for (size_t i = 0; i < ss.seeds.size(); i++) {
+        if (!ss.ok[i]) continue;
+        ll a = ss.seeds[i].a;
+        for (uint32_t x = ss.lo[i]; x < ss.hi[i]; x++) {
+            ll d = (ll)ix.pos[x] - a; if (d < 0) d = 0;
+            size_t b = (size_t)(((u64)d * inv) >> 32); bits[b >> 6] |= 1ULL << (b & 63);
+        }
+    }
+    ll occ = 0, runs = 0; u64 carry = 0;
+    for (u64 w : bits) { occ += __builtin_popcountll(w); runs += __builtin_popcountll(w & ~((w << 1) | carry)); carry = w >> 63; }
+    double V = min((double)n, (double)occ * (double)Lw);
+    return CM_HIT * ss.H + CM_WIN * runs + CM_BP * B * V;
+}
+static void equal_seeds(int m, int k, vector<Seed>& seeds) {
+    int q = m / (k + 1); seeds.clear();
+    for (int i = 0; i <= k; i++) seeds.push_back({i * q, min(q, SMAX)});
+}
+// windows -> merge -> stage-2 fallback check -> verify.  pred_f is the stage-1 prediction (recorded in the statistics).
+static void execute_seeds(const uint8_t* T, size_t n, const Seq& P, int k, const MyersPat& mp, SeedSet& ss, double pred_f, double pred_s, vector<size_t>& out) {
+    int m = P.size(), B = mp.B; double tg = now_ns();
+    add_bad(get_index(), T, n, P, ss);
+    S.pred_filter_ns += pred_f; S.pred_scan_ns += pred_s; S.filtered++; S.hits += ss.H;
+    if (!g_nofallback && pred_f > pred_s) { S.gen_ns += now_ns() - tg; scan_fallback(mp, T, n, k, out); return; }
+    const Index& ix = get_index();
+    vector<Win> W; W.reserve(ss.H);
+    for (size_t i = 0; i < ss.seeds.size(); i++) {
+        if (!ss.ok[i]) continue;
+        ll a = ss.seeds[i].a;
+        for (uint32_t x = ss.lo[i]; x < ss.hi[i]; x++) { ll p = ix.pos[x]; W.push_back({max(0LL, p - a - k), min((ll)n, p - a + m + k)}); }
+        for (uint32_t p : ss.bad[i]) W.push_back({max(0LL, (ll)p - a - k), min((ll)n, (ll)p - a + m + k)});
+    }
+    merge_windows(W);
+    ll total = 0; for (auto& w : W) total += w.second - w.first;
+    S.gen_ns += now_ns() - tg;
+    if (!g_nofallback && CM_HIT * ss.H + CM_WIN * W.size() + CM_BP * B * (double)total > pred_s) { scan_fallback(mp, T, n, k, out); return; }
+    verify_merged(W, mp, T, k, out);
+}
+// mode 0 = equal split, 1 = frequency-aware (SELMODE), 2 = hits + lambda * windows, 3 = auto (cost-model choice per query), 4 = original DP for comparison
 static void filter_core(const uint8_t* T, size_t n, const Seq& P, int k, int mode, vector<size_t>& out) {
-    bool freq_aware = mode >= 1;
     int m = P.size();
     MyersPat mp(P);
     int B = mp.B;
     int q = m / (k + 1);
     if (q < 1) { scan_fallback(mp, T, n, k, out); return; }
     const Index& ix = get_index();
-    vector<Seed> seeds;
-    if (freq_aware) {
-        double ts = now_ns();
-        bool okfa = select_fa(ix, P, k, seeds, mode == 2);
-        S.sel_ns += now_ns() - ts;
-        if (!okfa) { scan_fallback(mp, T, n, k, out); return; }
-    } else for (int i = 0; i <= k; i++) seeds.push_back({i * q, min(q, SMAX)});
-
-    double tg = now_ns();
-    // hits: positions from the index range, plus brute-force check of the (few) un-indexed positions
-    ll H = 0;
-    vector<uint32_t> lo(seeds.size()), hi(seeds.size()); vector<char> ok(seeds.size());
-    vector<vector<uint32_t>> badhits(seeds.size());
-    for (size_t i = 0; i < seeds.size(); i++) {
-        u64 c; ok[i] = seed_range(ix, P, seeds[i], lo[i], hi[i], c);
-        if (!ok[i]) continue;
-        H += hi[i] - lo[i];
-        for (uint32_t p : ix.bad) {
-            if (p + seeds[i].len > n) continue;
-            bool eq = true;
-            for (int t = 0; t < seeds[i].len; t++) if (T[p + t] != P[seeds[i].a + t] || T[p + t] > 3) { eq = false; break; }
-            if (eq) badhits[i].push_back(p);
-        }
-        H += badhits[i].size();
-    }
-    // cost model, stage 1 (before generating windows): expected merged windows/bp under uniform hit placement
-    double Lw = m + 2.0 * k, lam = (double)H * Lw / (double)n;
-    double V_est = n * (1.0 - exp(-lam)), W_est = H * exp(-lam);
-    double pred_f = CM_HIT * H + CM_WIN * W_est + CM_BP * B * V_est + (freq_aware ? CM_SEL * m * SMAX : 0.0);
     double pred_s = CM_SCAN * (double)n * B;
-    S.pred_filter_ns += pred_f; S.pred_scan_ns += pred_s; S.filtered++; S.hits += H;
-    if (!g_nofallback && pred_f > pred_s) { S.gen_ns += now_ns() - tg; scan_fallback(mp, T, n, k, out); return; }
-
-    vector<Win> W; W.reserve(H);
-    for (size_t i = 0; i < seeds.size(); i++) {
-        if (!ok[i]) continue;
-        ll a = seeds[i].a;
-        for (uint32_t x = lo[i]; x < hi[i]; x++) { ll p = ix.pos[x]; W.push_back({max(0LL, p - a - k), min((ll)n, p - a + m + k)}); }
-        for (uint32_t p : badhits[i]) W.push_back({max(0LL, (ll)p - a - k), min((ll)n, (ll)p - a + m + k)});
+    SeedSet ss;
+    auto select = [&](int how, SeedSet& dst) -> bool {   // how: 0 original DP, 1/2 fast (cap ignored for 1)
+        double ts = now_ns(); bool ok;
+        if (how == 2) ok = select_fa(ix, P, k, dst.seeds, true);
+        else if (how == 0) ok = select_fa(ix, P, k, dst.seeds, false);
+        else {
+            int cap = (how == 1) ? SMAX : SELCAP;
+            ok = select_fa_fast(ix, P, k, dst.seeds, cap);
+            double dt = now_ns() - ts; g_sel_nsop = 0.9 * g_sel_nsop + 0.1 * (dt / sel_ops(m, k, cap));
+        }
+        S.sel_ns += now_ns() - ts;
+        return ok;
+    };
+    if (mode == 0) {
+        equal_seeds(m, k, ss.seeds); collect(ix, T, n, P, ss);
+        execute_seeds(T, n, P, k, mp, ss, model_cost(ss.H, m, k, B, n), pred_s, out);
+    } else if (mode == 1 || mode == 2 || mode == 4) {
+        int how = mode == 2 ? 2 : (mode == 4 ? 0 : (SELMODE == 0 ? 0 : (SELMODE == 1 ? 1 : 3)));
+        if (!select(how == 3 ? 3 : how, ss)) { scan_fallback(mp, T, n, k, out); return; }
+        collect(ix, T, n, P, ss);
+        double sel_term = (how == 0 || how == 2) ? CM_SEL * m * SMAX : g_sel_nsop * sel_ops(m, k, how == 1 ? SMAX : SELCAP);
+        execute_seeds(T, n, P, k, mp, ss, model_cost(ss.H, m, k, B, n) + sel_term, pred_s, out);
+    } else {   // mode 3: filter_auto
+        static thread_local SeedSet eq, fa;   // reused buffers: no allocation per query
+        equal_seeds(m, k, eq.seeds); collect_ranges(ix, P, eq);
+        int pick = 0;   // 0 equal split, 1 frequency-aware, 2 scan
+        const double INFC = 1e300;
+        double cost_eq = INFC, cost_fa = INFC;
+        const double LB_eq = CM_HIT * eq.H;   // lower bound of the equal-split cost: its hit cost alone
+        if (!g_nofallback && LB_eq > pred_s) pick = 2;                     // hit cost alone already exceeds a scan
+        else {
+            double sel_est = g_sel_nsop * sel_ops(m, k, SELCAP);
+            bool run_dp = true;
+            if (LB_eq <= AUTO_SKIP * sel_est) {                              // equal split might be cheap: look at its real cost
+                cost_eq = occupancy_cost(ix, eq, m, k, B, n);
+                run_dp = cost_eq > AUTO_SKIP * sel_est;
+            }
+            if (run_dp) {
+                if (select(3, fa)) { collect_ranges(ix, P, fa); if (g_nofallback || CM_HIT * fa.H <= pred_s) cost_fa = occupancy_cost(ix, fa, m, k, B, n); }
+                if (cost_eq >= INFC && (cost_fa >= INFC || LB_eq < cost_fa)) cost_eq = occupancy_cost(ix, eq, m, k, B, n);   // equal split can only win if its bound is below cost_fa
+                double best = cost_eq;
+                if (cost_fa < best) { best = cost_fa; pick = 1; }
+                if (!g_nofallback && pred_s < best) pick = 2;
+            } else {
+                S.auto_skip++;
+                if (!g_nofallback && pred_s < cost_eq) pick = 2;
+            }
+        }
+        if (g_debug) fprintf(stderr, "AUTO m=%d k=%d H_eq=%lld cost_eq=%.0f H_fa=%lld cost_fa=%.0f scan=%.0f sel_est=%.0f pick=%d\n", m, k, eq.H, cost_eq, fa.H, cost_fa, pred_s, g_sel_nsop * sel_ops(m, k, SELCAP), pick);
+        if (pick == 2) { S.auto_scan++; S.pred_filter_ns += min(min(cost_eq, cost_fa), 1e15); S.pred_scan_ns += pred_s; S.filtered++; S.hits += eq.H; scan_fallback(mp, T, n, k, out); }
+        else if (pick == 1) { S.auto_fa++; execute_seeds(T, n, P, k, mp, fa, cost_fa, pred_s, out); }
+        else { S.auto_eq++; execute_seeds(T, n, P, k, mp, eq, cost_eq, pred_s, out); }
     }
-    merge_windows(W);
-    ll total = 0; for (auto& w : W) total += w.second - w.first;
-    S.gen_ns += now_ns() - tg;
-    // stage 2 with exact merged size
-    if (!g_nofallback && CM_HIT * H + CM_WIN * W.size() + CM_BP * B * (double)total > pred_s) { scan_fallback(mp, T, n, k, out); return; }
-    verify_merged(W, mp, T, k, out);
 }
 static void filter_alg(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) { filter_core(T, n, P, k, 0, out); }
 static void filter_fa(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) { filter_core(T, n, P, k, 1, out); }
+static void filter_auto(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) { filter_core(T, n, P, k, 3, out); }
+static void filter_fa_full(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) { filter_core(T, n, P, k, 4, out); }
 static void filter_fa_w(const uint8_t* T, size_t n, const Seq& P, int k, vector<size_t>& out) { filter_core(T, n, P, k, 2, out); }
 
 // ---------------------------------------------------------------- 5. BLAST-style heuristic
@@ -618,6 +784,11 @@ int main(int argc, char** argv) {
     for (int a = 5; a < argc; a++) { if (string(argv[a]) == "--dump") dump = true; if (string(argv[a]) == "--times") times = true; }
     if (getenv("APPROX_NOFALLBACK")) g_nofallback = atoi(getenv("APPROX_NOFALLBACK")) != 0;
     if (const char* wc = getenv("APPROX_WCAP")) WCAP = atoi(wc);
+    if (const char* e = getenv("APPROX_SEL")) SELMODE = atoi(e);
+    if (const char* e = getenv("APPROX_CAP")) SELCAP = atoi(e);
+    if (const char* e = getenv("APPROX_OCCSMALL")) OCC_SMALL = atoi(e);
+    if (const char* e = getenv("APPROX_DEBUG")) g_debug = atoi(e);
+    if (const char* e = getenv("APPROX_AUTOSKIP")) AUTO_SKIP = atof(e);
     if (const char* cm = getenv("APPROX_CM")) sscanf(cm, "%lf,%lf,%lf,%lf,%lf", &CM_HIT, &CM_WIN, &CM_BP, &CM_SCAN, &CM_SEL);
     Seq T = read_text(argv[2]);
     vector<Seq> pats;
@@ -630,13 +801,13 @@ int main(int argc, char** argv) {
 
     typedef void (*Fn)(const uint8_t*, size_t, const Seq&, int, vector<size_t>&);
     Fn fn = algo == "sellers" ? sellers : algo == "banded" ? banded : algo == "myers" ? myers : algo == "myers_pruned" ? myers_pruned : algo == "lv" ? lv
-          : algo == "filter" ? filter_alg : algo == "filter_fa" ? filter_fa : algo == "filter_fa_w" ? filter_fa_w
+          : algo == "filter" ? filter_alg : algo == "filter_fa" ? filter_fa : algo == "filter_fa_w" ? filter_fa_w : algo == "filter_auto" ? filter_auto : algo == "filter_fa_full" ? filter_fa_full
           : algo == "blast1" ? blast1 : algo == "blast2" ? blast2 : algo == "map" ? filter_alg : algo == "myers_best" ? myers_best : algo == "mindist" ? mindist : algo == "noop" ? noop_alg : nullptr;
     if (!fn) { fprintf(stderr, "unknown algo %s\n", algo.c_str()); return 1; }
 
     // index build is timed separately (one-time cost, amortised over queries)
     double t0 = now_ns();
-    if (algo == "filter" || algo == "filter_fa" || algo == "filter_fa_w" || algo == "blast1" || algo == "blast2") get_index();
+    if (algo == "filter" || algo == "filter_fa" || algo == "filter_fa_w" || algo == "filter_auto" || algo == "filter_fa_full" || algo == "blast1" || algo == "blast2") get_index();
     double t1 = now_ns();
 
     vector<vector<size_t>> res(pats.size());
@@ -655,10 +826,10 @@ int main(int argc, char** argv) {
     size_t total = 0; for (auto& r : res) total += r.size();
     printf("RESULT algo=%s n=%zu patterns=%zu k=%d matches=%zu index_ms=%.3f time_ms=%.3f hits=%lld windows=%lld "
            "verified_bp=%lld fallbacks=%lld filtered=%lld gen_ms=%.3f ver_ms=%.3f sel_ms=%.3f pred_filter_ms=%.3f pred_scan_ms=%.3f "
-           "cells_banded=%lld ungapped=%lld hsps=%lld lv_cells=%lld pruned_blocks=%lld peak_kb=%ld loaded_kb=%ld\n",
+           "cells_banded=%lld ungapped=%lld hsps=%lld lv_cells=%lld pruned_blocks=%lld peak_kb=%ld loaded_kb=%ld auto_skip=%lld auto_eq=%lld auto_fa=%lld auto_scan=%lld\n",
            algo.c_str(), T.size(), pats.size(), k, total, (t1 - t0) / 1e6, (t2 - t1) / 1e6, S.hits, S.windows,
            S.verified_bp, S.fallbacks, S.filtered, S.gen_ns / 1e6, S.ver_ns / 1e6, S.sel_ns / 1e6, S.pred_filter_ns / 1e6,
-           S.pred_scan_ns / 1e6, S.cells_banded, S.ungapped, S.hsps, lv_cells, pruned_block_steps, peak_rss_kb(), loaded_kb);
+           S.pred_scan_ns / 1e6, S.cells_banded, S.ungapped, S.hsps, lv_cells, pruned_block_steps, peak_rss_kb(), loaded_kb, S.auto_skip, S.auto_eq, S.auto_fa, S.auto_scan);
     if (dump) for (size_t i = 0; i < res.size(); i++) for (size_t e : res[i]) printf(algo == "mindist" ? "D %zu %zu\n" : "M %zu %zu\n", i, e);
     if (algo == "map") for (size_t i = 0; i < pats.size(); i++) {
         Aln al;
