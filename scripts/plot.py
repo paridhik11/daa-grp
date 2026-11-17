@@ -20,12 +20,12 @@ MAINL = NAME.get(MAIN, MAIN)
 LABEL = {"sellers": "Sellers DP", "lv": "Landau-Vishkin", "banded": "Ukkonen banded", "myers_pruned": "Myers + block pruning", "myers": "Myers bit-vector",
          "edlib": "Edlib (best match per read)", "wfa": "WFA2 (best match per read)",
          "filter": "filter, equal split", "filter_nofb": "filter, equal split (no fallback)",
-         "filter_fa": "filter_fa, frequency-aware", "filter_fa_nofb": "filter_fa (no fallback)",
+         "filter_fa": "filter_fa, frequency-aware", "filter_auto": "filter_auto (cost-model choice)", "filter_fa_nofb": "filter_fa (no fallback)",
          "blast1": "BLAST-style one-hit", "blast2": "BLAST-style two-hit"}
 STYLE = {"sellers": ("tab:gray", "o", "-"), "lv": ("tab:olive", "h", "-"), "banded": ("tab:orange", "s", "-"), "myers": ("tab:blue", "^", "-"), "myers_pruned": ("tab:cyan", "v", "-"),
          "edlib": ("tab:purple", "v", "--"), "wfa": ("tab:brown", "<", "--"),
          "filter": ("tab:green", "D", "-"), "filter_nofb": ("tab:green", "D", ":"),
-         "filter_fa": ("darkgreen", "P", "-"), "filter_fa_nofb": ("darkgreen", "P", ":"),
+         "filter_fa": ("darkgreen", "P", "-"), "filter_auto": ("tab:pink", "*", "-"), "filter_fa_nofb": ("darkgreen", "P", ":"),
          "blast1": ("tab:red", "x", "-"), "blast2": ("salmon", "+", "-")}
 
 
@@ -103,7 +103,7 @@ md.append(f"\nHeadline experiment ({MAINL}, m = 100, {NR} reads per setting): va
 
 # ---------------------------------------------------------------- 1. time vs error (all methods)
 fig, ax = plt.subplots(figsize=(8, 5))
-for a in ["sellers", "lv", "banded", "myers_pruned", "edlib", "wfa", "blast1", "blast2"]:
+for a in ["sellers", "lv", "banded", "myers_pruned", "edlib", "wfa", "filter_auto", "blast1", "blast2"]:
     xs, ys = series("error", a, "ms_per_pattern")
     c_, mk, ls = STYLE[a]
     ax.plot(xs, ys, color=c_, marker=mk, ls=ls, label=LABEL[a], ms=5)
@@ -396,7 +396,7 @@ for k in HK:
               f"{f(g('blast1', 'ms_per_pattern')):.3f} (rec {f(g('blast1', 'recall_read')):.2f}) | "
               f"{f(g('blast2', 'ms_per_pattern')):.3f} (rec {f(g('blast2', 'recall_read')):.2f}) | "
               f"{int(hv('filter', k, 'fallbacks'))} | {int(hv('filter_fa', k, 'fallbacks'))} |")
-for extra_md in ("instr_profile.md", "expected_hits.md", "divergence.md", "mapping_validation.md", "mapping_example.md", "objective_test.md", "pruned_myers.md", "memory.md"):
+for extra_md in ("instr_profile.md", "expected_hits.md", "divergence.md", "mapping_validation.md", "mapping_example.md", "objective_test.md", "pruned_myers.md", "memory.md", "phase3a_filter.md", "phase3a_lv.md", "phase3a_myers.md"):
     ipath = os.path.join(RES, extra_md)
     if os.path.exists(ipath):
         md.append("\n" + open(ipath).read())

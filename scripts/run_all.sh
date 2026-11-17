@@ -21,6 +21,7 @@ APPROX_NOFALLBACK=1 python3 tests/crosscheck.py     # pure filter path, no scan 
 echo "== real-data cross-check of every exact algorithm vs Sellers"
 python3 tests/crosscheck_real.py
 python3 tests/test_pruned.py
+python3 tests/test_lv.py
 echo "== alignment output validation (CIGAR) + worked example"
 python3 tests/test_mapping.py
 python3 scripts/mapping_example.py
@@ -36,6 +37,11 @@ echo "== expected-case analysis (formula vs measured hits)"
 python3 scripts/expected_hits.py > results/expected_hits_log.txt
 echo "== real homologous sequences (mt_orang vs mt_human)"
 python3 scripts/real_divergence.py > results/divergence_log.txt
+echo "== phase 3A: filter_auto and cheaper selection, packed Landau-Vishkin, single-word Myers (targeted runs)"
+python3 scripts/phase3a_filter.py > results/phase3a_filter_log.txt
+python3 scripts/phase3a_noise.py >> results/phase3a_filter_log.txt
+python3 scripts/phase3a_lv.py > results/phase3a_lv_log.txt
+python3 scripts/phase3a_myers.py > results/phase3a_myers_log.txt
 echo "== peak memory per method; DP-matrix figure"
 python3 scripts/memory.py > results/memory_log.txt
 python3 scripts/fig_dp_matrix.py

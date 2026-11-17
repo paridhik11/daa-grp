@@ -18,12 +18,12 @@ n = len(g)
 k = 10
 reads = [r[0] for r in make_reads(g, 5, 100, k, seed=7)]
 theory = {"noop": "text only (n bytes) plus read buffers", "sellers": "O(m)", "banded": "O(m)", "myers": "O(B sigma)",
-          "myers_pruned": "O(B sigma)", "lv": "2 arrays of n + 2k ints (8n bytes)",
+          "myers_pruned": "O(B sigma)", "lv": "packed text n/4 bytes (1.2 MB) + L1-sized chunk buffers", "lv_direct": "2 layers of n + 2k ints plus n flags (about 44 MB)", "filter_auto": "same index",
           "filter": "index 4(4^11+1) + 4n bytes (37 MB) plus build temporaries (counter copy 17 MB, flags 5 MB)", "filter_fa": "same index", "filter_fa_w": "same index",
           "blast1": "same index", "blast2": "same index", "map": "same index + O(m (m + k)) per cluster"}
 rows = []
 base = None
-for a in ("noop", "sellers", "banded", "myers", "myers_pruned", "lv", "filter", "filter_fa", "filter_fa_w", "blast1", "blast2", "map"):
+for a in ("noop", "sellers", "banded", "myers", "myers_pruned", "lv", "lv_direct", "filter", "filter_auto", "filter_fa", "filter_fa_w", "blast1", "blast2", "map"):
     info, _ = run_bin(a, tp, reads, k, dump=False, tag="mem")
     kb = info["peak_kb"]
     if a == "noop":

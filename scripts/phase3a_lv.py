@@ -55,7 +55,7 @@ for k in ((1, 5) if QUICK else (1, 5, 10, 30)):
         os.environ.pop("APPROX_LVSIMD", None)
     md.append(f"| {k} | {old:.1f} | {t['direct']:.1f} | {t['stream']:.1f} | {t['scalar']:.1f} | {t['simd']:.1f} | {old / t['simd']:.2f}x | {t['myers']:.1f} |")
 md.append("\nVariants and what they showed: the packed XOR + ctz extension alone (lv_stream) gave about 1.5x; temporal blocking (a chunk of diagonals carried through all layers in L1) "
-          "gave no further gain (the scalar cell is instruction-bound, about 30 instructions or 4.4 ns, not memory-bound); the AVX-512 cell loop (8 cells per iteration, "
-          "two gathers, lzcnt) gave the large step. A CPU without AVX-512 uses the scalar blocked loop (about 1.6x to 1.8x faster than phase 2). Texts or patterns containing N use the scalar loop.")
+          "gave a small and inconsistent gain (the scalar cell is instruction-bound, about 30 instructions or 4.4 ns, not memory-bound); the AVX-512 cell loop (8 cells per iteration, "
+          "two gathers, lzcnt) gave the large step. A CPU without AVX-512 uses the scalar blocked loop (about 1.7x to 2.3x faster than phase 2). Texts or patterns containing N use the scalar loop.")
 open(os.path.join(RES, "phase3a_lv.md"), "w").write("\n".join(md) + "\n")
 print("\n".join(md))

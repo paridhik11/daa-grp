@@ -30,15 +30,15 @@ from common import DATA, RES, run_bin  # noqa: E402
 from simulate import (inject_low_complexity, make_reads, make_reads_lowcomplex)  # noqa: E402
 
 QUICK = "--quick" in sys.argv
-NP = {"sellers": 1, "lv": 5, "banded": 20, "myers": 20, "myers_pruned": 20, "edlib": 20, "wfa": 5, "filter": 20, "filter_nofb": 20,
+NP = {"sellers": 1, "lv": 5, "filter_auto": 20, "banded": 20, "myers": 20, "myers_pruned": 20, "edlib": 20, "wfa": 5, "filter": 20, "filter_nofb": 20,
       "filter_fa": 20, "filter_fa_nofb": 20, "blast1": 20, "blast2": 20}
 if QUICK:
     NP = {a: min(v, 3) for a, v in NP.items()}
 BIN_ALGOS = {"sellers": ("sellers", False), "lv": ("lv", False), "banded": ("banded", False), "myers": ("myers", False), "myers_pruned": ("myers_pruned", False),
-             "filter": ("filter", False), "filter_nofb": ("filter", True),
+             "filter": ("filter", False), "filter_nofb": ("filter", True), "filter_auto": ("filter_auto", False),
              "filter_fa": ("filter_fa", False), "filter_fa_nofb": ("filter_fa", True),
              "blast1": ("blast1", False), "blast2": ("blast2", False)}
-EXACT = {"sellers", "lv", "banded", "myers", "myers_pruned", "filter", "filter_nofb", "filter_fa", "filter_fa_nofb"}
+EXACT = {"sellers", "lv", "banded", "myers", "myers_pruned", "filter_auto", "filter", "filter_nofb", "filter_fa", "filter_fa_nofb"}
 HEUR = {"blast1", "blast2"}
 ROWS = []
 TEXT_CACHE = {}
@@ -140,7 +140,7 @@ def measure(exp, x, dataset, text_path, text, reads, k, algos, mode="uniform", e
               f"hits/pat={row['hits_pp']:.0f} fb={row['fallbacks']} rec_read={row['recall_read']} ", flush=True)
 
 
-ALL = ["sellers", "lv", "banded", "myers", "myers_pruned", "edlib", "wfa", "filter", "filter_nofb", "filter_fa", "filter_fa_nofb", "blast1", "blast2"]
+ALL = ["sellers", "lv", "banded", "myers", "myers_pruned", "edlib", "wfa", "filter", "filter_nofb", "filter_fa", "filter_fa_nofb", "filter_auto", "blast1", "blast2"]
 
 
 HEADLINE_ALGOS = ["myers", "filter", "filter_nofb", "filter_fa", "filter_fa_nofb"]
