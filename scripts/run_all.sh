@@ -22,6 +22,7 @@ echo "== real-data cross-check of every exact algorithm vs Sellers"
 python3 tests/crosscheck_real.py
 python3 tests/test_pruned.py
 python3 tests/test_lv.py
+python3 tests/test_filter_s.py
 echo "== alignment output validation (CIGAR) + worked example"
 python3 tests/test_mapping.py
 python3 scripts/mapping_example.py
@@ -42,6 +43,9 @@ python3 scripts/phase3a_filter.py > results/phase3a_filter_log.txt
 python3 scripts/phase3a_noise.py >> results/phase3a_filter_log.txt
 python3 scripts/phase3a_lv.py > results/phase3a_lv_log.txt
 python3 scripts/phase3a_myers.py > results/phase3a_myers_log.txt
+python3 scripts/phase3b_filter_s.py > results/phase3b_filter_s_log.txt
+python3 scripts/phase3b_gate.py > results/phase3b_gate_log.txt
+python3 scripts/phase3b_auto.py > results/phase3b_auto_log.txt
 echo "== peak memory per method; DP-matrix figure"
 python3 scripts/memory.py > results/memory_log.txt
 python3 scripts/fig_dp_matrix.py

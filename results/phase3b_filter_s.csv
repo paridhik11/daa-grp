@@ -1,0 +1,85 @@
+setting,k,method,ms,hits,windows,bp,gen_ms,sel_ms
+"E. coli 536, m = 100 (10% error)",10,Myers scan,75.67826,0.0,0.0,0.0,0.0,0.0
+"E. coli 536, m = 100 (10% error)",10,"filter (equal, s=1)",1.23792,507.68,493.32,59306.8,0.02902,0.0
+"E. coli 536, m = 100 (10% error)",10,"filter_fa (fa, s=1)",0.5879,220.08,214.78,25771.38,0.0152,0.01924
+"E. coli 536, m = 100 (10% error)",10,"filter_s2 (equal, s=2)",0.08176,1368.46,5.48,677.5,0.06924000000000001,0.0
+"E. coli 536, m = 100 (10% error)",10,"filter_s3 (equal, s=3)",0.27416,4812.88,1.18,145.46,0.26780000000000004,0.0
+"E. coli 536, m = 100 (10% error)",10,"filter_fs2 (fa, s=2)",0.04948,678.16,1.96,240.74,0.0311,0.010920000000000001
+"E. coli 536, m = 100 (10% error)",10,"filter_fs3 (fa, s=3)",0.10311999999999999,1734.64,1.06,129.96,0.08872,0.011040000000000001
+"E. coli 536, m = 100 (12% error)",12,Myers scan,75.30266,0.0,0.0,0.0,0.0,0.0
+"E. coli 536, m = 100 (12% error)",12,"filter (equal, s=1)",8.43372,4621.36,4022.78,532928.98,0.29835999999999996,0.0
+"E. coli 536, m = 100 (12% error)",12,"filter_fa (fa, s=1)",3.63096,1801.64,1702.12,215592.38,0.10914,0.0177
+"E. coli 536, m = 100 (12% error)",12,"filter_s2 (equal, s=2)",0.98358,8147.26,231.24,29942.08,0.5282800000000001,0.0
+"E. coli 536, m = 100 (12% error)",12,"filter_s3 (equal, s=3)",1.43882,21128.42,26.88,3547.64,1.38638,0.0
+"E. coli 536, m = 100 (12% error)",12,"filter_fs2 (fa, s=2)",0.32948,3986.28,40.14,5187.42,0.22368,0.01274
+"E. coli 536, m = 100 (12% error)",12,"filter_fs3 (fa, s=3)",0.52318,8187.76,3.58,467.26,0.5268999999999999,0.0154
+"E. coli 536, m = 100 (15% error)",15,Myers scan,75.25395999999999,0.0,0.0,0.0,0.0,0.0
+"E. coli 536, m = 100 (15% error)",15,"filter (equal, s=1)",42.95008,33282.02,11914.86,2581677.36,2.81762,0.0
+"E. coli 536, m = 100 (15% error)",15,"filter_fa (fa, s=1)",25.5717,14980.0,9719.72,1573613.4,1.1680599999999999,0.02946
+"E. coli 536, m = 100 (15% error)",15,"filter_s2 (equal, s=2)",25.08068,66872.38,7122.96,1266139.48,5.62504,0.0
+"E. coli 536, m = 100 (15% error)",15,"filter_s3 (equal, s=3)",13.61486,98310.9,2473.62,368361.66,8.3948,0.0
+"E. coli 536, m = 100 (15% error)",15,"filter_fs2 (fa, s=2)",5.980639999999999,26364.68,1839.2,262384.92,2.03992,0.02704
+"E. coli 536, m = 100 (15% error)",15,"filter_fs3 (fa, s=3)",3.97194,44033.9,338.7,47615.12,3.2875799999999997,0.02128
+"E. coli 536, m = 100 (17% error)",17,Myers scan,79.6074,0.0,0.0,0.0,0.0,0.0
+"E. coli 536, m = 100 (17% error)",17,"filter (equal, s=1)",77.71534,97109.36,7006.82,4550850.92,9.321660000000001,0.0
+"E. coli 536, m = 100 (17% error)",17,"filter_fa (fa, s=1)",54.4946,43479.72,12609.78,3303362.66,3.7751799999999998,0.03166
+"E. coli 536, m = 100 (17% error)",17,"filter_s2 (equal, s=2)",48.43054,120520.84,10765.0,2578861.24,9.93588,0.0
+"E. coli 536, m = 100 (17% error)",17,"filter_s3 (equal, s=3)",52.271080000000005,232016.84,4772.4,2163208.9,20.5011,0.0
+"E. coli 536, m = 100 (17% error)",17,"filter_fs2 (fa, s=2)",27.94668,67827.4,7722.76,1384863.76,5.57292,0.03008
+"E. coli 536, m = 100 (17% error)",17,"filter_fs3 (fa, s=3)",17.285239999999998,102493.14,3380.22,549433.72,8.1505,0.027679999999999996
+"E. coli 536, m = 100 (20% error)",20,Myers scan,78.79652,0.0,0.0,0.0,0.0,0.0
+"E. coli 536, m = 100 (20% error)",20,"filter (equal, s=1)",114.09734,400572.26,520.96,4913074.9,42.22966,0.0
+"E. coli 536, m = 100 (20% error)",20,"filter_fa (fa, s=1)",85.34592,150805.9,2858.9,4813201.58,13.52256,0.0348
+"E. coli 536, m = 100 (20% error)",20,"filter_s2 (equal, s=2)",115.08424000000001,463463.04,222.12,4932888.46,43.23268,0.0
+"E. coli 536, m = 100 (20% error)",20,"filter_s3 (equal, s=3)",119.1902,484897.34,2199.3,4837082.44,48.60202,0.0
+"E. coli 536, m = 100 (20% error)",20,"filter_fs2 (fa, s=2)",89.64620000000001,213658.84,6763.94,4387586.96,19.1987,0.034780000000000005
+"E. coli 536, m = 100 (20% error)",20,"filter_fs3 (fa, s=3)",83.8497,292128.48,9138.02,3761239.48,27.40558,0.03442
+"E. coli 536, m = 100 (25% error)",25,Myers scan,73.37552,0.0,0.0,0.0,0.0,0.0
+"E. coli 536, m = 100 (25% error)",25,"filter (equal, s=1)",261.70923999999997,1605637.82,1.08,4938919.44,180.56702,0.0
+"E. coli 536, m = 100 (25% error)",25,"filter_fa (fa, s=1)",141.52246,633544.98,1.5,4938911.66,70.40108000000001,0.0412
+"E. coli 536, m = 100 (25% error)",25,"filter_s2 (equal, s=2)",302.83592,2089282.92,1.74,4938903.16,237.03886,0.0
+"E. coli 536, m = 100 (25% error)",25,"filter_s3 (equal, s=3)",308.44172,2267774.66,1.0,4938920.0,237.2616,0.0
+"E. coli 536, m = 100 (25% error)",25,"filter_fs2 (fa, s=2)",154.23746,809199.84,2.92,4938879.64,81.42186,0.037599999999999995
+"E. coli 536, m = 100 (25% error)",25,"filter_fs3 (fa, s=3)",180.33142,1014714.22,5.58,4938806.38,106.88665999999999,0.04032
+"mt_orang segments vs mt_human (real homologs), m = 100",15,Myers scan,0.24871,0.0,0.0,0.0,0.0,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",15,"filter (equal, s=1)",0.16047,133.19,45.09,10074.24,0.00635,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",15,"filter_fa (fa, s=1)",0.11573,70.74,37.53,6527.61,0.005580000000000001,0.01737
+"mt_orang segments vs mt_human (real homologs), m = 100",15,"filter_s2 (equal, s=2)",0.17647,473.76,40.32,10018.49,0.023700000000000002,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",15,"filter_s3 (equal, s=3)",0.07835,502.7,19.71,3344.85,0.024929999999999997,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",15,"filter_fs2 (fa, s=2)",0.04282,123.3,10.18,1496.42,0.005639999999999999,0.0126
+"mt_orang segments vs mt_human (real homologs), m = 100",15,"filter_fs3 (fa, s=3)",0.029900000000000003,201.67,3.51,491.86,0.008369999999999999,0.01164
+"mt_orang segments vs mt_human (real homologs), m = 100",20,Myers scan,0.24556999999999998,0.0,0.0,0.0,0.0,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",20,"filter (equal, s=1)",0.35991999999999996,2045.78,1.0,16569.0,0.11506999999999999,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",20,"filter_fa (fa, s=1)",0.35284999999999994,665.28,4.93,16429.1,0.03282,0.01381
+"mt_orang segments vs mt_human (real homologs), m = 100",20,"filter_s2 (equal, s=2)",0.46675,2139.04,1.14,16561.71,0.13767,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",20,"filter_s3 (equal, s=3)",0.48611,2238.53,2.78,16492.31,0.16635000000000003,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",20,"filter_fs2 (fa, s=2)",0.32093000000000005,930.54,12.93,15854.22,0.05206,0.01598
+"mt_orang segments vs mt_human (real homologs), m = 100",20,"filter_fs3 (fa, s=3)",0.32834,1272.87,20.61,14905.37,0.0781,0.01624
+"mt_orang segments vs mt_human (real homologs), m = 100",25,Myers scan,0.25292000000000003,0.0,0.0,0.0,0.0,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",25,"filter (equal, s=1)",1.08242,8985.15,1.0,16569.0,0.65815,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",25,"filter_fa (fa, s=1)",0.5725,2748.43,1.0,16569.0,0.18286000000000002,0.023450000000000002
+"mt_orang segments vs mt_human (real homologs), m = 100",25,"filter_s2 (equal, s=2)",0.9795,9344.39,1.0,16569.0,0.8471299999999999,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",25,"filter_s3 (equal, s=3)",1.20008,9679.76,1.0,16569.0,0.8964799999999999,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",25,"filter_fs2 (fa, s=2)",0.49485,3437.83,1.0,16569.0,0.23109000000000002,0.021509999999999998
+"mt_orang segments vs mt_human (real homologs), m = 100",25,"filter_fs3 (fa, s=3)",0.60551,4282.3,1.0,16569.0,0.28771,0.02046
+"mt_orang segments vs mt_human (real homologs), m = 100",30,Myers scan,0.28278,0.0,0.0,0.0,0.0,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",30,"filter (equal, s=1)",1.00879,10715.54,1.0,16569.0,0.98655,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",30,"filter_fa (fa, s=1)",1.00451,7621.64,1.0,16569.0,0.55023,0.02746
+"mt_orang segments vs mt_human (real homologs), m = 100",30,"filter_s2 (equal, s=2)",1.14485,11049.9,1.0,16569.0,0.98303,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",30,"filter_s3 (equal, s=3)",1.04263,11384.97,1.0,16569.0,0.7918000000000001,0.0
+"mt_orang segments vs mt_human (real homologs), m = 100",30,"filter_fs2 (fa, s=2)",0.88168,8935.19,1.0,16569.0,0.8085,0.03783
+"mt_orang segments vs mt_human (real homologs), m = 100",30,"filter_fs3 (fa, s=3)",1.0067,10350.94,1.0,16569.0,0.71615,0.02112
+"mt_orang segments vs mt_human (real homologs), m = 200",30,Myers scan,0.60162,0.0,0.0,0.0,0.0,0.0
+"mt_orang segments vs mt_human (real homologs), m = 200",30,"filter (equal, s=1)",0.5097999999999999,266.61,6.99,16060.49,0.01595,0.0
+"mt_orang segments vs mt_human (real homologs), m = 200",30,"filter_fa (fa, s=1)",0.54314,106.42,20.74,12394.12,0.005520000000000001,0.03725
+"mt_orang segments vs mt_human (real homologs), m = 200",30,"filter_s2 (equal, s=2)",0.36212000000000005,275.55,20.35,11304.6,0.01892,0.0
+"mt_orang segments vs mt_human (real homologs), m = 200",30,"filter_s3 (equal, s=3)",0.15473,284.2,12.55,4392.33,0.01403,0.0
+"mt_orang segments vs mt_human (real homologs), m = 200",30,"filter_fs2 (fa, s=2)",0.22354,144.81,15.14,5452.3,0.0069,0.03476
+"mt_orang segments vs mt_human (real homologs), m = 200",30,"filter_fs3 (fa, s=3)",0.14734,194.06,6.31,1970.06,0.011899999999999999,0.058179999999999996
+"mt_orang segments vs mt_human (real homologs), m = 200",40,Myers scan,0.49201999999999996,0.0,0.0,0.0,0.0,0.0
+"mt_orang segments vs mt_human (real homologs), m = 200",40,"filter (equal, s=1)",0.74977,4094.12,1.0,16569.0,0.25172,0.0
+"mt_orang segments vs mt_human (real homologs), m = 200",40,"filter_fa (fa, s=1)",0.60743,1149.59,1.0,16569.0,0.06477000000000001,0.04822
+"mt_orang segments vs mt_human (real homologs), m = 200",40,"filter_s2 (equal, s=2)",0.83979,4181.26,1.0,16569.0,0.29789,0.0
+"mt_orang segments vs mt_human (real homologs), m = 200",40,"filter_s3 (equal, s=3)",0.81306,4284.48,1.0,16569.0,0.35363,0.0
+"mt_orang segments vs mt_human (real homologs), m = 200",40,"filter_fs2 (fa, s=2)",0.6306,1368.78,1.01,16568.32,0.07992,0.047939999999999997
+"mt_orang segments vs mt_human (real homologs), m = 200",40,"filter_fs3 (fa, s=3)",0.65023,1619.86,1.07,16565.85,0.09809,0.050469999999999994

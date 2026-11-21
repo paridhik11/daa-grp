@@ -18,7 +18,7 @@ scripts/map_reads GENOME.fa READS.fa -k 8 [--format tsv|sam]
 | `results/summary.md` | All tables (break-even, cost model and blind test, cells per second, stress, datasets, expected-case analysis, real divergence, objective test, memory, mapping validation) |
 | `results/*.png` | Plots (including `dp_matrix.png`, `costmodel_blind.png`, `expected_hits.png`); `results/bench.csv`, `headline*.csv` raw data |
 | `src/approx.cpp` | Sellers, banded, Myers, Myers with block pruning, Landau-Vishkin (direct extension), equal-split filter, frequency-aware filter (hits, and hits + lambda * windows), `filter_auto` (per-query cost-model choice), BLAST-style heuristic, traceback (`map`) |
-| `scripts/` | `fetch_data.py`, `simulate.py`, `calibrate.py`, `run_bench.py`, `plot.py`, `instr_profile.py`, `expected_hits.py`, `real_divergence.py`, `objective_test.py`, `memory.py`, `fig_dp_matrix.py`, `mapping_example.py`, `phase3a_filter.py`, `phase3a_noise.py`, `phase3a_lv.py`, `phase3a_myers.py`, `map_reads`, `run_all.sh` |
+| `scripts/` | `fetch_data.py`, `simulate.py`, `calibrate.py`, `run_bench.py`, `plot.py`, `phase3b_*.py`, `instr_profile.py`, `expected_hits.py`, `real_divergence.py`, `objective_test.py`, `memory.py`, `fig_dp_matrix.py`, `mapping_example.py`, `phase3a_filter.py`, `phase3a_noise.py`, `phase3a_lv.py`, `phase3a_myers.py`, `map_reads`, `run_all.sh` |
 | `tests/` | `crosscheck.py`, `crosscheck_real.py`, `test_pruned.py`, `test_lv.py`, `test_mapping.py` (all against Sellers), `edlib_semantics.py` |
 | `data/SOURCES.txt` | Dataset provenance (URL, header, length, GC, SHA-256) |
 
