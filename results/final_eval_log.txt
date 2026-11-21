@@ -1,0 +1,33 @@
+E. coli 536 (tuned on) 100 1 ok
+E. coli 536 (tuned on) 100 2 ok
+E. coli 536 (tuned on) 100 4 ok
+E. coli 536 (tuned on) 100 6 ok
+E. coli 536 (tuned on) 100 8 ok
+E. coli 536 (tuned on) 100 10 ok
+E. coli 536 (tuned on) 100 12 ok
+E. coli 536 (tuned on) 100 15 ok
+E. coli 536 (tuned on) 100 17 ok
+E. coli 536 (tuned on) 100 20 ok
+E. coli 536 (tuned on) 100 25 ok
+E. coli 536 (tuned on) 200 30 ok
+E. coli 536 (tuned on) 200 40 ok
+B. fragilis (BLIND) 100 1 ok
+B. fragilis (BLIND) 100 2 ok
+B. fragilis (BLIND) 100 4 ok
+B. fragilis (BLIND) 100 6 ok
+B. fragilis (BLIND) 100 8 ok
+B. fragilis (BLIND) 100 10 ok
+B. fragilis (BLIND) 100 12 ok
+B. fragilis (BLIND) 100 15 ok
+B. fragilis (BLIND) 100 17 ok
+B. fragilis (BLIND) 100 20 ok
+B. fragilis (BLIND) 100 25 ok
+B. fragilis (BLIND) 200 30 ok
+B. fragilis (BLIND) 200 40 ok
+## Final pass: gate on B. fragilis (BLIND, thresholds frozen: ratio 20, minimum count 100)
+
+| k | reads flagged | ratio median | ratio p90 | ratio max |
+|---|---|---|---|---|
+| 6 | 0 of 200 | 5.0 | 9.2 | 32.5 |
+| 10 | 0 of 200 | 3.3 | 5.4 | 13.0 |
+| 15 | 0 of 200 | 2.7 | 3.9 | 4.5 |

@@ -4,14 +4,14 @@ E. coli 536, 10 reads, best of 5 runs, ms per read. 'phase 2' = binary built fro
 
 | m (blocks) | k | Myers phase 2 | Myers now | pruned phase 2 | pruned now | pruned now / Myers now | pruned now vs phase-2 pruned | Edlib (best/read) |
 |---|---|---|---|---|---|---|---|---|
-| 20 (1) | 2 | 39.6 | 19.3 | 46.3 | 18.6 | 0.96 | 2.49x | 43.8 |
-| 32 (1) | 5 | 38.9 | 19.0 | 48.6 | 19.4 | 1.02 | 2.50x | 34.4 |
-| 50 (1) | 2 | 39.7 | 19.4 | 48.5 | 19.6 | 1.01 | 2.47x | 34.6 |
-| 50 (1) | 5 | 37.6 | 18.7 | 50.2 | 18.9 | 1.02 | 2.65x | 35.4 |
-| 50 (1) | 10 | 40.8 | 19.6 | 48.8 | 19.0 | 0.97 | 2.58x | 33.2 |
-| 56 (1) | 5 | 39.0 | 19.2 | 45.8 | 18.7 | 0.98 | 2.44x | 34.7 |
-| 60 (1) | 2 | 37.7 | 18.7 | 49.2 | 18.8 | 1.00 | 2.62x | 35.9 |
-| 100 (2) | 5 | 66.1 | 68.8 | 46.9 | 46.4 | 0.67 | 1.01x | 34.8 |
-| 100 (2) | 20 | 67.9 | 75.0 | 46.9 | 48.6 | 0.65 | 0.96x | 36.2 |
+| 20 (1) | 2 | 41.2 | 20.6 | 50.2 | 20.6 | 1.00 | 2.43x | 36.5 |
+| 32 (1) | 5 | 41.1 | 20.6 | 50.9 | 20.6 | 1.00 | 2.47x | 38.2 |
+| 50 (1) | 2 | 41.1 | 20.7 | 50.1 | 20.6 | 0.99 | 2.43x | 37.7 |
+| 50 (1) | 5 | 41.7 | 20.6 | 51.7 | 20.6 | 1.00 | 2.51x | 36.9 |
+| 50 (1) | 10 | 41.3 | 20.6 | 50.4 | 20.6 | 1.00 | 2.44x | 37.9 |
+| 56 (1) | 5 | 41.4 | 20.8 | 50.8 | 20.8 | 1.00 | 2.44x | 36.2 |
+| 60 (1) | 2 | 41.5 | 20.8 | 51.8 | 20.8 | 1.00 | 2.48x | 36.7 |
+| 100 (2) | 5 | 69.3 | 72.5 | 49.8 | 52.2 | 0.72 | 0.95x | 38.6 |
+| 100 (2) | 20 | 68.6 | 71.6 | 50.2 | 53.0 | 0.74 | 0.95x | 38.6 |
 
-At one block the pruned scan now takes at most 1.02 times the time of plain Myers (same loop, so the difference is run-to-run noise); for several blocks the pruned scan is unchanged (m = 100 rows). The register-only loop also makes plain Myers faster for m <= 64, and the filters' window verification for short reads.
+At one block the pruned scan now takes at most 1.00 times the time of plain Myers (same loop, so the difference is run-to-run noise); for several blocks the pruned scan is unchanged (m = 100 rows). The register-only loop also makes plain Myers faster for m <= 64, and the filters' window verification for short reads.

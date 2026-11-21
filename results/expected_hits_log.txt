@@ -1,6 +1,6 @@
 | 20 | 4 | 4 | 405145.5 | 408636.8 | 1.01 | 371949.1 | 394515.5 | 411230.2 | 1.11 | 1.04 | 21929.96 | 19293.64 |
 
-Predicted crossover with a Myers scan (cost-model constants, formula hits): uniform-text formula k = 17.0 (k/m = 0.170); spectrum-corrected formula k = 16.7 (k/m = 0.167).
+Predicted crossover with a Myers scan (cost-model constants, formula hits): uniform-text formula k = 17.4 (k/m = 0.174); spectrum-corrected formula k = 17.0 (k/m = 0.170).
 
 ### Agreement (factor error over k = 1, 2, 3, 4, 6, 8, 10, 11, 12, 13, 14, 15, 17, 20: median / worst)
 

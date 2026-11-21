@@ -1,5 +1,5 @@
-| 15 | fa_w, hit-list cap 1000 (tried after seeing the first result) | 14685 | 9594 | 1551347 | 25.212 | 0.199 |
+| 15 | fa_w, hit-list cap 1000 (tried after seeing the first result) | 14685 | 9594 | 1551347 | 24.942 | 0.121 |
 
-**Before/after on the case that verified more bases (lowcomplex_edge, k = 10):** equal split 12693 hits, 531 windows, 75968 bp, 1.71 ms; min-hits DP 2839 hits, 1536 windows, 193687 bp, 3.24 ms; hits + lambda * windows DP 5662 hits, 295 windows, 42867 bp, 8.77 ms (seed selection 7.83 ms); same with hit-list cap 1000: 2859 hits, 1515 windows, 191528 bp, 3.64 ms (selection 0.19 ms).
-`filter_fa_w` versus `filter_fa` over all 20 settings: more than 5% faster in 0, more than 5% slower in 18, within 5% in 2.
-`filter_fa_w1k` versus `filter_fa` over all 20 settings: more than 5% faster in 0, more than 5% slower in 15, within 5% in 5.
+**Before/after on the case that verified more bases (lowcomplex_edge, k = 10):** equal split 12693 hits, 531 windows, 75968 bp, 1.62 ms; min-hits DP 2992 hits, 1411 windows, 178281 bp, 3.57 ms; hits + lambda * windows DP 5662 hits, 295 windows, 42867 bp, 1.36 ms (seed selection 0.54 ms); same with hit-list cap 1000: 2859 hits, 1515 windows, 191528 bp, 3.25 ms (selection 0.07 ms).
+`filter_fa_w` versus `filter_fa` over all 20 settings: more than 5% faster in 2, more than 5% slower in 15, within 5% in 3.
+`filter_fa_w1k` versus `filter_fa` over all 20 settings: more than 5% faster in 3, more than 5% slower in 11, within 5% in 6.

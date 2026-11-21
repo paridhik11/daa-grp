@@ -1,69 +1,69 @@
-unconstrained least squares c_win, c_bp = [218.63545887724766, 7.277517455702779] ; NNLS = [218.63545887725007, 7.2775174557027755]
+unconstrained least squares c_win, c_bp = [169.53539037607302, 7.5182467036241185] ; NNLS = [169.5353903760754, 7.518246703624117]
 {
  "fit": "NNLS (scipy.optimize.nnls)",
- "c_win_unconstrained": 218.63545887724766,
- "c_bp_unconstrained": 7.277517455702779,
- "c_hit": 109.67560142029267,
- "c_win": 218.63545887725007,
- "c_bp": 7.2775174557027755,
- "a_scan": 7.69661231884058,
- "c_sel": 57.72222222222222,
+ "c_win_unconstrained": 169.53539037607302,
+ "c_bp_unconstrained": 7.5182467036241185,
+ "c_hit": 107.87274787603663,
+ "c_win": 169.5353903760754,
+ "c_bp": 7.518246703624117,
+ "a_scan": 8.10300422705314,
+ "c_sel": 14.97979797979798,
  "text_len": 4600000,
  "calibrated_on": "synthetic genome_synth.txt",
  "evaluated_on": "E. coli 536"
 }
-[headline] k=2 myers           median    68.489 ms  p10-p90 [64.761, 82.147]  hits(med)=0 fb=0
-[headline] k=2 filter          median     0.009 ms  p10-p90 [0.004, 0.014]  hits(med)=6 fb=0
-[headline] k=2 filter_nofb     median     0.010 ms  p10-p90 [0.004, 0.018]  hits(med)=6 fb=0
-[headline] k=2 filter_fa       median     0.034 ms  p10-p90 [0.032, 0.045]  hits(med)=1 fb=0
-[headline] k=2 filter_fa_nofb  median     0.035 ms  p10-p90 [0.032, 0.042]  hits(med)=1 fb=0
-[headline] k=4 myers           median    72.564 ms  p10-p90 [63.590, 85.502]  hits(med)=0 fb=0
-[headline] k=4 filter          median     0.019 ms  p10-p90 [0.013, 0.024]  hits(med)=10 fb=0
-[headline] k=4 filter_nofb     median     0.014 ms  p10-p90 [0.010, 0.020]  hits(med)=10 fb=0
-[headline] k=4 filter_fa       median     0.038 ms  p10-p90 [0.036, 0.046]  hits(med)=2 fb=0
-[headline] k=4 filter_fa_nofb  median     0.039 ms  p10-p90 [0.035, 0.045]  hits(med)=2 fb=0
-[headline] k=6 myers           median    65.422 ms  p10-p90 [63.184, 82.396]  hits(med)=0 fb=0
-[headline] k=6 filter          median     0.020 ms  p10-p90 [0.013, 0.029]  hits(med)=12 fb=0
-[headline] k=6 filter_nofb     median     0.018 ms  p10-p90 [0.011, 0.028]  hits(med)=12 fb=0
-[headline] k=6 filter_fa       median     0.044 ms  p10-p90 [0.042, 0.056]  hits(med)=3 fb=0
-[headline] k=6 filter_fa_nofb  median     0.045 ms  p10-p90 [0.042, 0.056]  hits(med)=3 fb=0
-[headline] k=8 myers           median    65.593 ms  p10-p90 [63.463, 74.041]  hits(med)=0 fb=0
-[headline] k=8 filter          median     0.027 ms  p10-p90 [0.018, 0.085]  hits(med)=16 fb=0
-[headline] k=8 filter_nofb     median     0.028 ms  p10-p90 [0.019, 0.085]  hits(med)=16 fb=0
-[headline] k=8 filter_fa       median     0.076 ms  p10-p90 [0.066, 0.095]  hits(med)=10 fb=0
-[headline] k=8 filter_fa_nofb  median     0.078 ms  p10-p90 [0.068, 0.100]  hits(med)=10 fb=0
-[headline] k=10 myers           median    64.958 ms  p10-p90 [62.712, 82.533]  hits(med)=0 fb=0
-[headline] k=10 filter          median     0.418 ms  p10-p90 [0.342, 1.931]  hits(med)=204 fb=0
-[headline] k=10 filter_nofb     median     0.497 ms  p10-p90 [0.443, 1.907]  hits(med)=204 fb=0
-[headline] k=10 filter_fa       median     0.461 ms  p10-p90 [0.349, 0.724]  hits(med)=168 fb=0
-[headline] k=10 filter_fa_nofb  median     0.457 ms  p10-p90 [0.319, 0.765]  hits(med)=168 fb=0
-[headline] k=12 myers           median    65.511 ms  p10-p90 [63.465, 77.192]  hits(med)=0 fb=0
-[headline] k=12 filter          median     7.192 ms  p10-p90 [5.612, 8.758]  hits(med)=3651 fb=0
-[headline] k=12 filter_nofb     median     6.495 ms  p10-p90 [1.883, 6.754]  hits(med)=3651 fb=0
-[headline] k=12 filter_fa       median     3.927 ms  p10-p90 [2.322, 6.517]  hits(med)=1646 fb=0
-[headline] k=12 filter_fa_nofb  median     3.189 ms  p10-p90 [1.841, 4.865]  hits(med)=1646 fb=0
-[headline] k=14 myers           median    64.569 ms  p10-p90 [62.574, 67.063]  hits(med)=0 fb=0
-[headline] k=14 filter          median    26.167 ms  p10-p90 [23.097, 27.227]  hits(med)=16828 fb=0
-[headline] k=14 filter_nofb     median    27.445 ms  p10-p90 [24.123, 32.109]  hits(med)=16828 fb=0
-[headline] k=14 filter_fa       median    15.653 ms  p10-p90 [9.802, 22.950]  hits(med)=7390 fb=0
-[headline] k=14 filter_fa_nofb  median    16.468 ms  p10-p90 [11.557, 23.279]  hits(med)=7390 fb=0
-[headline] k=16 myers           median    68.006 ms  p10-p90 [64.163, 85.404]  hits(med)=0 fb=0
-[headline] k=16 filter          median    66.301 ms  p10-p90 [30.812, 75.378]  hits(med)=76192 fb=0
-[headline] k=16 filter_nofb     median    64.961 ms  p10-p90 [30.835, 74.876]  hits(med)=76192 fb=0
-[headline] k=16 filter_fa       median    40.427 ms  p10-p90 [29.128, 52.279]  hits(med)=22432 fb=0
-[headline] k=16 filter_fa_nofb  median    35.389 ms  p10-p90 [28.258, 53.144]  hits(med)=22432 fb=0
-[headline] k=18 myers           median    66.292 ms  p10-p90 [62.645, 79.448]  hits(med)=0 fb=0
-[headline] k=18 filter          median    72.097 ms  p10-p90 [65.614, 82.554]  hits(med)=85475 fb=30
-[headline] k=18 filter_nofb     median    69.782 ms  p10-p90 [67.596, 99.733]  hits(med)=85475 fb=0
-[headline] k=18 filter_fa       median    67.641 ms  p10-p90 [57.106, 75.781]  hits(med)=64657 fb=6
-[headline] k=18 filter_fa_nofb  median    62.936 ms  p10-p90 [55.079, 72.821]  hits(med)=64657 fb=0
-[headline] k=20 myers           median    65.096 ms  p10-p90 [62.917, 68.008]  hits(med)=0 fb=0
-[headline] k=20 filter          median    66.945 ms  p10-p90 [64.451, 72.390]  hits(med)=377106 fb=30
-[headline] k=20 filter_nofb     median    99.698 ms  p10-p90 [69.124, 108.299]  hits(med)=377106 fb=0
-[headline] k=20 filter_fa       median    69.119 ms  p10-p90 [65.509, 80.084]  hits(med)=160620 fb=30
-[headline] k=20 filter_fa_nofb  median    83.260 ms  p10-p90 [74.909, 89.883]  hits(med)=160620 fb=0
-[headline] k=25 myers           median    67.762 ms  p10-p90 [64.174, 80.882]  hits(med)=0 fb=0
-[headline] k=25 filter          median    70.814 ms  p10-p90 [66.693, 89.214]  hits(med)=1867622 fb=30
-[headline] k=25 filter_nofb     median   282.329 ms  p10-p90 [121.781, 309.317]  hits(med)=1867622 fb=0
-[headline] k=25 filter_fa       median    67.770 ms  p10-p90 [65.871, 80.911]  hits(med)=680954 fb=30
-[headline] k=25 filter_fa_nofb  median   144.239 ms  p10-p90 [120.575, 183.929]  hits(med)=680954 fb=0
+[headline] k=2 myers           median    69.590 ms  p10-p90 [66.530, 72.260]  hits(med)=0 fb=0
+[headline] k=2 filter          median     0.009 ms  p10-p90 [0.004, 0.013]  hits(med)=6 fb=0
+[headline] k=2 filter_nofb     median     0.009 ms  p10-p90 [0.004, 0.013]  hits(med)=6 fb=0
+[headline] k=2 filter_fa       median     0.007 ms  p10-p90 [0.006, 0.008]  hits(med)=1 fb=0
+[headline] k=2 filter_fa_nofb  median     0.007 ms  p10-p90 [0.006, 0.009]  hits(med)=1 fb=0
+[headline] k=4 myers           median    69.239 ms  p10-p90 [66.490, 72.765]  hits(med)=0 fb=0
+[headline] k=4 filter          median     0.015 ms  p10-p90 [0.010, 0.018]  hits(med)=10 fb=0
+[headline] k=4 filter_nofb     median     0.015 ms  p10-p90 [0.010, 0.020]  hits(med)=10 fb=0
+[headline] k=4 filter_fa       median     0.008 ms  p10-p90 [0.007, 0.010]  hits(med)=2 fb=0
+[headline] k=4 filter_fa_nofb  median     0.008 ms  p10-p90 [0.007, 0.010]  hits(med)=2 fb=0
+[headline] k=6 myers           median    68.353 ms  p10-p90 [66.552, 71.381]  hits(med)=0 fb=0
+[headline] k=6 filter          median     0.024 ms  p10-p90 [0.014, 0.034]  hits(med)=12 fb=0
+[headline] k=6 filter_nofb     median     0.018 ms  p10-p90 [0.010, 0.028]  hits(med)=12 fb=0
+[headline] k=6 filter_fa       median     0.009 ms  p10-p90 [0.008, 0.012]  hits(med)=3 fb=0
+[headline] k=6 filter_fa_nofb  median     0.009 ms  p10-p90 [0.008, 0.012]  hits(med)=3 fb=0
+[headline] k=8 myers           median    69.436 ms  p10-p90 [65.641, 75.039]  hits(med)=0 fb=0
+[headline] k=8 filter          median     0.028 ms  p10-p90 [0.018, 0.087]  hits(med)=16 fb=0
+[headline] k=8 filter_nofb     median     0.027 ms  p10-p90 [0.018, 0.089]  hits(med)=16 fb=0
+[headline] k=8 filter_fa       median     0.025 ms  p10-p90 [0.019, 0.039]  hits(med)=10 fb=0
+[headline] k=8 filter_fa_nofb  median     0.025 ms  p10-p90 [0.017, 0.040]  hits(med)=10 fb=0
+[headline] k=10 myers           median    68.585 ms  p10-p90 [65.683, 71.051]  hits(med)=0 fb=0
+[headline] k=10 filter          median     0.399 ms  p10-p90 [0.347, 1.547]  hits(med)=204 fb=0
+[headline] k=10 filter_nofb     median     0.403 ms  p10-p90 [0.334, 1.517]  hits(med)=204 fb=0
+[headline] k=10 filter_fa       median     0.341 ms  p10-p90 [0.263, 0.615]  hits(med)=168 fb=0
+[headline] k=10 filter_fa_nofb  median     0.342 ms  p10-p90 [0.235, 0.607]  hits(med)=168 fb=0
+[headline] k=12 myers           median    69.467 ms  p10-p90 [65.901, 79.749]  hits(med)=0 fb=0
+[headline] k=12 filter          median     6.903 ms  p10-p90 [1.924, 7.757]  hits(med)=3651 fb=0
+[headline] k=12 filter_nofb     median     6.838 ms  p10-p90 [2.038, 7.224]  hits(med)=3651 fb=0
+[headline] k=12 filter_fa       median     3.207 ms  p10-p90 [2.155, 4.999]  hits(med)=1646 fb=0
+[headline] k=12 filter_fa_nofb  median     3.205 ms  p10-p90 [1.911, 4.791]  hits(med)=1646 fb=0
+[headline] k=14 myers           median    69.313 ms  p10-p90 [66.246, 74.350]  hits(med)=0 fb=0
+[headline] k=14 filter          median    27.161 ms  p10-p90 [24.293, 27.920]  hits(med)=16828 fb=0
+[headline] k=14 filter_nofb     median    27.419 ms  p10-p90 [24.523, 34.449]  hits(med)=16828 fb=0
+[headline] k=14 filter_fa       median    14.433 ms  p10-p90 [9.768, 20.284]  hits(med)=7390 fb=0
+[headline] k=14 filter_fa_nofb  median    14.658 ms  p10-p90 [9.385, 21.502]  hits(med)=7390 fb=0
+[headline] k=16 myers           median    68.500 ms  p10-p90 [66.312, 82.093]  hits(med)=0 fb=0
+[headline] k=16 filter          median    66.721 ms  p10-p90 [31.264, 69.896]  hits(med)=76192 fb=0
+[headline] k=16 filter_nofb     median    65.284 ms  p10-p90 [30.734, 67.469]  hits(med)=76192 fb=0
+[headline] k=16 filter_fa       median    36.747 ms  p10-p90 [30.115, 57.169]  hits(med)=22432 fb=0
+[headline] k=16 filter_fa_nofb  median    37.228 ms  p10-p90 [29.106, 54.106]  hits(med)=22432 fb=0
+[headline] k=18 myers           median    68.897 ms  p10-p90 [65.490, 77.678]  hits(med)=0 fb=0
+[headline] k=18 filter          median    68.773 ms  p10-p90 [66.506, 75.276]  hits(med)=85475 fb=8
+[headline] k=18 filter_nofb     median    70.040 ms  p10-p90 [67.533, 98.107]  hits(med)=85475 fb=0
+[headline] k=18 filter_fa       median    63.669 ms  p10-p90 [57.044, 68.130]  hits(med)=64657 fb=5
+[headline] k=18 filter_fa_nofb  median    62.133 ms  p10-p90 [55.844, 71.886]  hits(med)=64657 fb=0
+[headline] k=20 myers           median    67.201 ms  p10-p90 [65.275, 69.175]  hits(med)=0 fb=0
+[headline] k=20 filter          median    68.171 ms  p10-p90 [65.536, 70.124]  hits(med)=377106 fb=30
+[headline] k=20 filter_nofb     median   101.466 ms  p10-p90 [76.414, 113.516]  hits(med)=377106 fb=0
+[headline] k=20 filter_fa       median    66.528 ms  p10-p90 [65.339, 68.937]  hits(med)=160620 fb=30
+[headline] k=20 filter_fa_nofb  median    80.915 ms  p10-p90 [71.559, 94.712]  hits(med)=160620 fb=0
+[headline] k=25 myers           median    67.256 ms  p10-p90 [65.086, 68.971]  hits(med)=0 fb=0
+[headline] k=25 filter          median    68.669 ms  p10-p90 [66.061, 76.590]  hits(med)=1867622 fb=30
+[headline] k=25 filter_nofb     median   263.453 ms  p10-p90 [111.742, 273.477]  hits(med)=1867622 fb=0
+[headline] k=25 filter_fa       median    68.198 ms  p10-p90 [65.505, 70.968]  hits(med)=680954 fb=30
+[headline] k=25 filter_fa_nofb  median   137.632 ms  p10-p90 [108.802, 162.142]  hits(med)=680954 fb=0

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One command: build, fetch data (skipped if present), crosscheck, calibrate cost model (NNLS), instruction profile, benchmark
 # (headline experiment with 100 reads per setting), stress, plots, summary.
-#   scripts/run_all.sh            full run (about 15 minutes)
+#   scripts/run_all.sh            full run (about 1.5 hours with the phase 3 and final-pass targeted runs)
 #   scripts/run_all.sh --quick    smoke run (about 2 minutes, tiny sample sizes)
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -46,6 +46,8 @@ python3 scripts/phase3a_myers.py > results/phase3a_myers_log.txt
 python3 scripts/phase3b_filter_s.py > results/phase3b_filter_s_log.txt
 python3 scripts/phase3b_gate.py > results/phase3b_gate_log.txt
 python3 scripts/phase3b_auto.py > results/phase3b_auto_log.txt
+python3 scripts/final_eval.py > results/final_eval_log.txt
+python3 scripts/final_gate.py >> results/final_eval_log.txt
 echo "== peak memory per method; DP-matrix figure"
 python3 scripts/memory.py > results/memory_log.txt
 python3 scripts/fig_dp_matrix.py

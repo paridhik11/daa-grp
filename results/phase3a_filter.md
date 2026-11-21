@@ -6,12 +6,12 @@ Selection time is the mean time spent choosing seeds per query (100 reads, best 
 
 | k | original DP (all lengths 1..11, per-seed lookups) | prefix tables, all lengths 1..11 | tables + length cap 3 | tables + length cap 2 (default) | tables + length cap 1 |
 |---|---|---|---|---|---|
-| 1 | 17.3 us, 1 hits, 0.020 ms | 8.6 us, 1 hits, 0.010 ms | 4.5 us, 1 hits, 0.006 ms | 4.1 us, 1 hits, 0.006 ms | 2.9 us, 1 hits, 0.005 ms |
-| 4 | 20.2 us, 3 hits, 0.024 ms | 11.2 us, 3 hits, 0.015 ms | 5.8 us, 3 hits, 0.009 ms | 4.7 us, 3 hits, 0.008 ms | 3.6 us, 3 hits, 0.007 ms |
-| 8 | 26.6 us, 16 hits, 0.049 ms | 15.2 us, 16 hits, 0.039 ms | 6.8 us, 16 hits, 0.029 ms | 6.8 us, 16 hits, 0.032 ms | 4.7 us, 16 hits, 0.029 ms |
-| 10 | 34.4 us, 215 hits, 0.403 ms | 19.3 us, 215 hits, 0.375 ms | 11.7 us, 215 hits, 0.355 ms | 10.0 us, 215 hits, 0.366 ms | 7.4 us, 222 hits, 0.384 ms |
-| 12 | 49.3 us, 1760 hits, 2.997 ms | 39.3 us, 1760 hits, 3.511 ms | 19.2 us, 1760 hits, 3.073 ms | 16.2 us, 1760 hits, 3.149 ms | 9.9 us, 1801 hits, 3.100 ms |
-| 15 | 73.6 us, 14685 hits, 22.648 ms | 46.6 us, 14685 hits, 22.928 ms | 27.5 us, 14685 hits, 21.580 ms | 25.6 us, 14685 hits, 22.874 ms | 18.0 us, 14770 hits, 22.658 ms |
+| 1 | 15.2 us, 1 hits, 0.018 ms | 9.3 us, 1 hits, 0.012 ms | 5.5 us, 1 hits, 0.007 ms | 4.2 us, 1 hits, 0.006 ms | 3.3 us, 1 hits, 0.005 ms |
+| 4 | 22.2 us, 3 hits, 0.026 ms | 12.6 us, 3 hits, 0.017 ms | 6.7 us, 3 hits, 0.010 ms | 5.2 us, 3 hits, 0.009 ms | 4.2 us, 3 hits, 0.008 ms |
+| 8 | 30.3 us, 16 hits, 0.057 ms | 17.6 us, 16 hits, 0.045 ms | 9.4 us, 16 hits, 0.038 ms | 6.9 us, 16 hits, 0.033 ms | 5.4 us, 16 hits, 0.033 ms |
+| 10 | 38.1 us, 215 hits, 0.447 ms | 22.7 us, 215 hits, 0.434 ms | 14.0 us, 215 hits, 0.424 ms | 11.6 us, 215 hits, 0.423 ms | 9.0 us, 222 hits, 0.430 ms |
+| 12 | 56.3 us, 1760 hits, 3.435 ms | 31.4 us, 1760 hits, 3.422 ms | 20.7 us, 1760 hits, 3.439 ms | 15.9 us, 1760 hits, 3.357 ms | 10.9 us, 1801 hits, 3.531 ms |
+| 15 | 83.1 us, 14685 hits, 24.628 ms | 50.1 us, 14685 hits, 24.708 ms | 33.2 us, 14685 hits, 24.620 ms | 28.0 us, 14685 hits, 24.790 ms | 20.5 us, 14770 hits, 25.076 ms |
 
 ### B. filter_auto versus filter and filter_fa (fallback active; mean ms per query, best of 3 runs)
 
@@ -19,44 +19,44 @@ Selection time is the mean time spent choosing seeds per query (100 reads, best 
 
 | text | setting | filter | filter_fa | filter_auto | auto/best | choices (skip / eq / fa / scan) |
 |---|---|---|---|---|---|---|
-| E. coli 536 | m=100, k=1 | 0.0075 | 0.0061 | 0.0053 | 0.87 | 8 / 9 / 91 / 0 |
-| E. coli 536 | m=100, k=2 | 0.0136 | 0.0059 | 0.0058 | 0.99 | 2 / 2 / 98 / 0 |
-| E. coli 536 | m=100, k=4 | 0.0220 | 0.0078 | 0.0081 | 1.05 | 0 / 0 / 100 / 0 |
-| E. coli 536 | m=100, k=6 | 0.0278 | 0.0110 | 0.0112 | 1.02 | 0 / 0 / 100 / 0 |
-| E. coli 536 | m=100, k=8 | 0.0508 | 0.0302 | 0.0291 | 0.96 | 0 / 7 / 93 / 0 |
-| E. coli 536 | m=100, k=10 | 0.8039 | 0.3715 | 0.3997 | 1.08 | 0 / 1 / 99 / 0 |
-| E. coli 536 | m=100, k=11 | 2.2446 | 1.2523 | 1.2484 | 1.00 | 0 / 1 / 99 / 0 |
-| E. coli 536 | m=100, k=12 | 7.8155 | 3.5026 | 3.0968 | 0.88 | 0 / 0 / 100 / 0 |
-| E. coli 536 | m=100, k=13 | 12.0550 | 6.7190 | 6.5412 | 0.97 | 0 / 1 / 99 / 0 |
-| E. coli 536 | m=100, k=14 | 28.2478 | 13.3296 | 12.8947 | 0.97 | 0 / 0 / 100 / 0 |
-| E. coli 536 | m=100, k=15 | 35.8575 | 22.0568 | 23.0967 | 1.05 | 0 / 0 / 100 / 0 |
-| E. coli 536 | m=100, k=17 | 66.3081 | 48.0851 | 49.4433 | 1.03 | 0 / 0 / 100 / 0 |
-| E. coli 536 | m=100, k=20 | 66.4618 | 67.1910 | 64.9385 | 0.98 | 0 / 0 / 2 / 98 |
-| E. coli 536 | m=200, k=10 | 0.1520 | 0.0256 | 0.0242 | 0.95 | 0 / 0 / 100 / 0 |
-| E. coli 536 | m=400, k=20 | 1.0157 | 0.0923 | 0.0919 | 1.00 | 0 / 0 / 100 / 0 |
-| E. coli 536 | m=800, k=40 | 7.2595 | 0.3951 | 0.4208 | 1.07 | 0 / 0 / 100 / 0 |
-| synthetic | m=100, k=2 | 0.0082 | 0.0067 | 0.0056 | 0.83 | 1 / 1 / 99 / 0 |
-| synthetic | m=100, k=8 | 0.0306 | 0.0204 | 0.0207 | 1.02 | 0 / 7 / 93 / 0 |
-| synthetic | m=100, k=10 | 0.5589 | 0.3446 | 0.3289 | 0.95 | 0 / 16 / 84 / 0 |
-| synthetic | m=100, k=12 | 5.8112 | 2.8739 | 2.8752 | 1.00 | 0 / 1 / 99 / 0 |
-| synthetic | m=100, k=15 | 29.3480 | 22.6892 | 22.0704 | 0.97 | 0 / 3 / 97 / 0 |
-| stress | low-complexity edge, k=6 | 0.4552 | 0.0381 | 0.0392 | 1.03 | 0 / 1 / 99 / 0 |
-| stress | low-complexity inside, k=6 | 0.7407 | 0.5956 | 0.5677 | 0.95 | 0 / 0 / 100 / 0 |
-| stress | clustered, k=6 | 0.0425 | 0.0208 | 0.0197 | 0.94 | 0 / 0 / 100 / 0 |
-| stress | low-complexity edge, k=10 | 1.3373 | 2.2465 | 1.2881 | 0.96 | 0 / 49 / 51 / 0 |
-| stress | low-complexity inside, k=10 | 1.7407 | 1.4518 | 1.3958 | 0.96 | 0 / 17 / 83 / 0 |
-| stress | clustered, k=10 | 1.0221 | 0.4524 | 0.4539 | 1.00 | 0 / 0 / 100 / 0 |
-| stress | low-complexity edge, k=15 | 31.9837 | 22.2839 | 21.9175 | 0.98 | 0 / 14 / 86 / 0 |
-| stress | low-complexity inside, k=15 | 24.9067 | 18.6762 | 18.2589 | 0.98 | 0 / 14 / 86 / 0 |
-| stress | clustered, k=15 | 37.6503 | 23.3706 | 23.1225 | 0.99 | 0 / 1 / 99 / 0 |
+| E. coli 536 | m=100, k=1 | 0.0091 | 0.0062 | 0.0057 | 0.91 | 12 / 12 / 87 / 0 |
+| E. coli 536 | m=100, k=2 | 0.0145 | 0.0070 | 0.0070 | 0.99 | 2 / 2 / 98 / 0 |
+| E. coli 536 | m=100, k=4 | 0.0257 | 0.0092 | 0.0091 | 0.99 | 0 / 0 / 98 / 0 |
+| E. coli 536 | m=100, k=6 | 0.0326 | 0.0125 | 0.0125 | 1.00 | 0 / 0 / 72 / 0 |
+| E. coli 536 | m=100, k=8 | 0.0586 | 0.0358 | 0.0257 | 0.72 | 0 / 1 / 1 / 0 |
+| E. coli 536 | m=100, k=10 | 0.9166 | 0.4260 | 0.0663 | 0.16 | 0 / 0 / 0 / 0 |
+| E. coli 536 | m=100, k=11 | 2.5446 | 1.3770 | 0.1417 | 0.10 | 0 / 0 / 0 / 0 |
+| E. coli 536 | m=100, k=12 | 8.3791 | 3.3939 | 0.3446 | 0.10 | 0 / 0 / 0 / 0 |
+| E. coli 536 | m=100, k=13 | 13.3190 | 7.4962 | 0.8870 | 0.12 | 0 / 0 / 0 / 0 |
+| E. coli 536 | m=100, k=14 | 31.0514 | 13.9657 | 2.0552 | 0.15 | 0 / 0 / 0 / 0 |
+| E. coli 536 | m=100, k=15 | 38.7411 | 24.3493 | 3.8209 | 0.16 | 0 / 0 / 0 / 0 |
+| E. coli 536 | m=100, k=17 | 70.8597 | 53.1276 | 16.6739 | 0.31 | 0 / 0 / 0 / 0 |
+| E. coli 536 | m=100, k=20 | 73.2853 | 72.2102 | 72.4674 | 1.00 | 0 / 0 / 0 / 93 |
+| E. coli 536 | m=200, k=10 | 0.1637 | 0.0276 | 0.0374 | 1.36 | 0 / 0 / 34 / 0 |
+| E. coli 536 | m=400, k=20 | 1.1163 | 0.1043 | 0.1371 | 1.32 | 0 / 0 / 4 / 0 |
+| E. coli 536 | m=800, k=40 | 7.7142 | 0.4405 | 0.4989 | 1.13 | 0 / 0 / 0 / 0 |
+| synthetic | m=100, k=2 | 0.0078 | 0.0070 | 0.0065 | 0.93 | 2 / 2 / 98 / 0 |
+| synthetic | m=100, k=8 | 0.0345 | 0.0241 | 0.0238 | 0.99 | 0 / 0 / 6 / 0 |
+| synthetic | m=100, k=10 | 0.6410 | 0.3748 | 0.0601 | 0.16 | 0 / 0 / 0 / 0 |
+| synthetic | m=100, k=12 | 6.2198 | 3.1904 | 0.3022 | 0.09 | 0 / 0 / 0 / 0 |
+| synthetic | m=100, k=15 | 32.8081 | 24.7178 | 4.3550 | 0.18 | 0 / 0 / 0 / 0 |
+| stress | low-complexity edge, k=6 | 0.4786 | 0.0415 | 0.0388 | 0.94 | 0 / 0 / 41 / 0 |
+| stress | low-complexity inside, k=6 | 0.7732 | 0.5650 | 0.5982 | 1.06 | 0 / 0 / 95 / 0 |
+| stress | clustered, k=6 | 0.0455 | 0.0226 | 0.0263 | 1.16 | 0 / 0 / 13 / 0 |
+| stress | low-complexity edge, k=10 | 1.4636 | 2.4636 | 0.4377 | 0.30 | 0 / 0 / 0 / 0 |
+| stress | low-complexity inside, k=10 | 1.7684 | 1.5622 | 1.1296 | 0.72 | 0 / 1 / 52 / 0 |
+| stress | clustered, k=10 | 1.0861 | 0.4905 | 0.0919 | 0.19 | 0 / 0 / 1 / 0 |
+| stress | low-complexity edge, k=15 | 33.1186 | 24.8621 | 6.5758 | 0.26 | 0 / 0 / 0 / 0 |
+| stress | low-complexity inside, k=15 | 26.1813 | 19.3731 | 9.6869 | 0.50 | 0 / 0 / 0 / 0 |
+| stress | clustered, k=15 | 37.5153 | 25.2135 | 4.2124 | 0.17 | 0 / 1 / 1 / 0 |
 
-Worst auto/best ratio: 1.08 (E. coli 536, m=100, k=10); 2 of 30 settings exceed 1.05: E. coli 536 m=100, k=10 (1.08); E. coli 536 m=800, k=40 (1.07).
+Worst auto/best ratio: 1.36 (E. coli 536, m=200, k=10); 5 of 30 settings exceed 1.05: E. coli 536 m=200, k=10 (1.36); E. coli 536 m=400, k=20 (1.32); stress clustered, k=6 (1.16); E. coli 536 m=800, k=40 (1.13); stress low-complexity inside, k=6 (1.06).
 
 ### Run-to-run noise check (E. coli 536, 300 reads, 6 interleaved runs)
 
 | setting | filter_fa runs: min to max (ms) | filter_auto runs: min to max (ms) | spread of the same algorithm | ratio of medians auto / fa | ratio of minima |
 |---|---|---|---|---|---|
-| m=100, k=10 | 0.408 to 0.580 | 0.410 to 0.596 | 42% | 0.887 | 1.005 |
-| m=800, k=40 | 0.407 to 0.659 | 0.443 to 0.651 | 62% | 1.296 | 1.089 |
+| m=100, k=10 | 0.441 to 0.507 | 0.067 to 0.070 | 15% | 0.154 | 0.152 |
+| m=800, k=40 | 0.450 to 0.529 | 0.506 to 0.539 | 18% | 1.130 | 1.124 |
 
 The same algorithm varies by more than 5% between identical runs, so single-run ratios of 1.05 to 1.08 are within noise.
