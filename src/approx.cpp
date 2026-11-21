@@ -1182,6 +1182,36 @@ int main(int argc, char** argv) {
     long loaded_kb = cur_rss_kb();   // steady RSS after loading text and patterns (transient read buffers returned)
 
     typedef void (*Fn)(const uint8_t*, size_t, const Seq&, int, vector<size_t>&);
+    if (algo.rfind("multi:", 0) == 0) {
+        // timing harness only (no algorithm code): all listed methods run on every read inside this one process, the order rotating per read
+        // and per repeat; index build and startup are excluded. Output: "I <method> <rep> <read> <ns> <matches>" and an exactness flag per read.
+        struct NF { const char* n; Fn f; };
+        NF tab[] = {{"myers", myers}, {"lv", lv}, {"banded", banded}, {"filter", filter_alg}, {"filter_fa", filter_fa}, {"filter_fa_w", filter_fa_w}, {"filter_fa_wg", filter_fa_wg},
+                    {"filter_auto", filter_auto}, {"filter_s2", filter_s2}, {"filter_s3", filter_s3}, {"filter_fs2", filter_fs2}, {"filter_fs3", filter_fs3}, {"myers_pruned", myers_pruned}};
+        vector<NF> ms; string names = algo.substr(6); size_t pos = 0;
+        while (pos <= names.size()) { size_t q = names.find(',', pos); if (q == string::npos) q = names.size();
+            string nm = names.substr(pos, q - pos); bool ok = false;
+            for (auto& e : tab) if (nm == e.n) { ms.push_back(e); ok = true; }
+            if (!ok) { fprintf(stderr, "unknown method %s\n", nm.c_str()); return 1; }
+            pos = q + 1; }
+        int reps = 3; if (const char* e = getenv("APPROX_REPS")) reps = atoi(e);
+        get_index();
+        long bad = 0; size_t M = ms.size();
+        for (int r = 0; r < reps; r++) for (size_t i = 0; i < pats.size(); i++) {
+            vector<size_t> ref; bool have = false;
+            for (size_t j = 0; j < M; j++) {
+                const NF& e = ms[(j + i + r) % M];
+                vector<size_t> out; double ts = now_ns();
+                e.f(T.data(), T.size(), pats[i], k, out);
+                sort(out.begin(), out.end()); out.erase(unique(out.begin(), out.end()), out.end());
+                double te = now_ns();
+                printf("I %s %d %zu %.0f %zu\n", e.n, r, i, te - ts, out.size());
+                if (!have) { ref = out; have = true; } else if (out != ref) bad++;
+            }
+        }
+        printf("MULTI reads=%zu reps=%d methods=%zu mismatches=%ld\n", pats.size(), reps, M, bad);
+        return 0;
+    }
     Fn fn = algo == "sellers" ? sellers : algo == "banded" ? banded : algo == "myers" ? myers : algo == "myers_pruned" ? myers_pruned : algo == "lv" ? lv : algo == "lv_stream" ? lv_stream : algo == "lv_direct" ? lv_direct
           : algo == "filter" ? filter_alg : algo == "filter_fa" ? filter_fa : algo == "filter_fa_w" ? filter_fa_w : algo == "filter_fa_wg" ? filter_fa_wg : algo == "filter_auto" ? filter_auto : algo == "filter_s1" ? filter_s1 : algo == "filter_s2" ? filter_s2 : algo == "filter_s3" ? filter_s3 : algo == "filter_fs2" ? filter_fs2 : algo == "filter_fs3" ? filter_fs3 : algo == "filter_fa_full" ? filter_fa_full
           : algo == "blast1" ? blast1 : algo == "blast2" ? blast2 : algo == "map" ? filter_alg : algo == "myers_best" ? myers_best : algo == "mindist" ? mindist : algo == "noop" ? noop_alg : nullptr;
