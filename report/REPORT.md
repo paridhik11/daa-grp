@@ -2,18 +2,39 @@
 
 *Design and Analysis of Algorithms, end-term project, Problem 8. All measurements: `results/summary.md`, `results/bench.csv`, plots in `results/`. Reproduce everything with `make bench`.*
 
+## What we did
+
+We took the k-differences problem on DNA: report every place in a genome where a read matches with at most k edits. We implemented a family of exact solutions, from the textbook dynamic program to bit-parallel scans and index-based filters, and compared them side by side. Every method is part of one C++ program, and every exact method is checked against the textbook dynamic program (Sellers) on random data, on real genomes and on planted matches.
+
+Then we asked a practical question: for a given read length and error rate, which method is fastest, and can a program tell in advance? The answer is a set of measured crossovers, a cost model that predicts them (tested on a genome it had never seen), and a per-query chooser that follows them.
+
+## Our contributions
+
+1. **Exact implementations and a cross-checked comparison** of Sellers' dynamic program, banded DP, Myers' bit-vector scan (with block pruning), Landau-Vishkin and the pigeonhole filters, all returning identical answers in every check (Sections 2 to 4).
+2. **Frequency-aware seed selection** with an optimality proof (Lemma 6) and a fast version based on prefix-count tables and capped seed lengths (Sections 2.5 and 4.10).
+3. **Generalised s-hit pigeonhole filters**, which verify a window only where s seeds hit inside one narrow band of diagonals. Theorem 12 proves them exact, and an exhaustive test of 484,805 cases checks the combinatorics. They are up to 1,400x faster than a scan at 10% error (Section 4.11).
+4. **A cost model and an expected-case formula** that predict the filter-versus-scan crossover (k/m of about 0.17), tested blind on a second genome: 0.169 predicted against 0.168 measured (Sections 4.1 and 4.3).
+5. **`filter_auto`, a per-query method chooser** that picks the equal split, the frequency-aware split, the 2-hit or 3-hit filter, or a scan for each read, and is exact whichever it picks (Sections 2.12, 4.10 and 4.15).
+6. **A fast Landau-Vishkin implementation** with packed text, blocking and an AVX-512 loop, 5x to 6x faster than our first version (Section 4.13).
+7. **A read-mapping tool** that reports one best alignment per read with a CIGAR string, validated on 3,200 reads (Section 4.17).
+
+These are improved variants and an engineering study built on known ideas, which we cite in Section 6.0 (the Optimal Seed Solver [13], search schemes [14], Myers [3], Landau-Vishkin [8] and others). We do not claim a new algorithm.
+
 ## Summary of results
 
-- **Correctness.** Every exact method (Sellers, banded, Myers, Myers with pruning, Landau-Vishkin, the equal-split, frequency-aware, 2-hit and 3-hit filters, `filter_auto`) returns exactly Sellers' end positions in all checks: 300 randomised cases, 1,440 comparisons on real genomes, 1,120 planted-match comparisons for the generalised filters, 3,200 alignment checks, and an exhaustive combinatorial check of the pigeonhole bound (484,805 cases); 0 failures.
-- **Best exact scan.** Myers' bit-vector scan costs the same for every k (about 73 to 76 ms per 100 bp read on a 4.6 to 5.2 Mb genome); the AVX-512 Landau-Vishkin beats it only at small k (3.9x to 4.8x at k = 1, 1.1x to 1.2x at k = 8) and that ratio depends on AVX-512.
-- **Filters with an index.** The generalised pigeonhole filters (Theorem 12) are 1,400x faster than a scan at k = 10 (`filter_fs2`), about 200x at k = 12, 17x to 20x at k = 15 and 4x to 5x at k = 17 (`filter_fs3`); from k = 20 at m = 100 (error 20%) nothing beats the scan.
-- **Blind test.** On *B. fragilis*, never used for tuning, all constants frozen, the ratios agree with *E. coli* within about 15% (Section 4.11, `results/final_eval.md`).
-- **`filter_auto`.** It matches the best fixed method (0.95 to 1.00) from k = 12, stays at the scan's speed at k >= 20, and for k <= 10 is 0.4 to 0.77 of the best fixed s-hit filter but 2.4x to 7x better than `filter_fa`.
-- **Real divergence.** Human against orangutan mtDNA has a median distance of 15%, right at the filters' crossover; `filter_fs3` is 8x faster than Myers at k = 15 there (Section 5.0).
-- **Heuristic.** The BLAST-style one-hit heuristic has read recall 1.00 up to k = 15 and 0.95 to 0.99 at k = 20 to 40; the two-hit variant falls to 0.73 to 0.86 from k = 20 (Section 5.0). It is not exact.
-- **Where to look.** Decision table: Section 5.2. Plots in `results/`: `time_vs_error.png`, `breakeven.png`, `costmodel_blind.png`, `expected_hits.png`, `recall_vs_error.png`, `stress.png`, `dp_matrix.png`. Tables: `results/summary.md`, `results/final_eval.md`, `results/phase3b_*.md`.
+With an index, the best filters answer a 100 bp query up to 1,400x faster than a full scan at 10% error (k = 10) and about 5x faster at 17% error; from 20% error nothing beats the scan. The crossover with the scan is predicted at k/m = 0.169 and measured at 0.168, and the same constants predicted it on a second genome that was never used for tuning.
+
+Requiring two or three seed hits inside a band of diagonals makes the filter 12x faster than the one-hit frequency-aware filter at k = 10, and the ratios on the second genome agree with the first within about 15%. The per-query chooser matches the best fixed method (0.95 to 1.00 of it) from k = 12 upwards and stays at scan speed from k = 20.
+
+Without an index, Myers' scan costs the same for every k (about 73 to 76 ms for a 100 bp read on a 4.6 to 5.2 Mb genome). Our AVX-512 Landau-Vishkin beats it only at small k (4.8x at k = 1, 1.1x at k = 8), and that depends on AVX-512.
+
+Real human and orangutan mitochondrial DNA differ by a median of 15%, right at the crossover; there the 3-hit filter is 8x faster than a scan at k = 15. The BLAST-style heuristic keeps read recall of 1.00 up to k = 15 but is not exact.
+
+Every exact method returns exactly Sellers' end positions in all checks, with 0 failures. The decision table is in Section 5.2, and the main plots are `time_vs_error.png`, `breakeven.png`, `costmodel_blind.png`, `expected_hits.png`, `recall_vs_error.png` and `stress.png` in `results/`.
 
 ## 1. Problem Statement
+
+Reads from a sequencing machine are noisy copies of pieces of a genome. To find where a read belongs we must allow a few edits: substitutions, insertions and deletions. This section states the problem exactly, explains why it matters, and describes the data.
 
 **Input.** A text T[0..n) (a genome), a pattern P[0..m) (a read), both over {A, C, G, T}, and an integer k >= 0. Edit distance ed(X, Y) is the minimum number of substitutions, insertions and deletions turning X into Y.
 
@@ -32,11 +53,24 @@ Real sequences differ by point mutations and indels, so exact matching is not en
 | orangutan mitochondrial DNA | 16,499 | 0.459 | lh3/minimap2 test (real homolog of the human mtDNA) |
 | *Bacteroides fragilis* FDAARGOS_1225 chromosome (NZ_CP069563.1), evaluation only | 5,150,703 | 0.432 | nf-core/test-datasets (first record; a 98 kb plasmid record is ignored) |
 
-Headers, lengths, GC and SHA-256 are in `data/SOURCES.txt`; non-ACGT characters were stripped. Reads are simulated from the genome with exactly k random edits, so a true match within k always exists; the oracle for correctness is Sellers. A synthetic 4.6 Mbp genome (random, with injected repeats) is used to fit the cost model; *B. fragilis* is used only to test it blind (Section 4); mt_orang and mt_human are matched against each other as real homologs (Section 5).
+Headers, lengths, GC and SHA-256 are in `data/SOURCES.txt`; non-ACGT characters were stripped. Reads are simulated from the genome with exactly k random edits, so a true match within k always exists; the oracle for correctness is Sellers. A synthetic 4.6 Mbp genome (random, with injected repeats) is used to fit the cost model; *B. fragilis* is used only to test it blind (Section 4); mt_orang and mt_human are matched against each other as real homologs (Section 4.16).
 
-**Scope and novelty.** This is a comparative study plus an improved variant of a known technique. The frequency-aware splitting (Section 2.5) follows the idea of the Optimal Seed Solver [13] (pick pigeonhole seeds with the fewest occurrences by dynamic programming) and relates to optimal search schemes [14]. Our differences are engineering choices: seeds capped at 11 characters so that one direct-address table answers every lookup, gaps allowed between seeds, verification by Myers windows, and a calibrated cost model deciding when to fall back to a full scan. We do not claim a new algorithm. The library of methods also includes the Landau-Vishkin diagonal algorithm, Myers with block pruning and a mapping front end with CIGAR output, all standard techniques implemented here for comparison.
+**Where this project sits.** The frequency-aware splitting of Section 2.5 follows the idea of the Optimal Seed Solver [13] (pick pigeonhole seeds with the fewest occurrences by dynamic programming) and relates to optimal search schemes [14]. Our changes are engineering choices: seeds capped at 11 characters so that one direct-address table answers every lookup, gaps allowed between seeds, verification by Myers windows, the s-hit generalisation, and a calibrated cost model that decides when to fall back to a full scan. Landau-Vishkin, block-pruned Myers and the mapping front end are standard techniques that we implemented for comparison.
+
+### 1.1 Why it matters: applications
+
+The k-differences problem appears wherever a short string must be located in a long one despite errors. Typical settings, with the regime of Section 5.2 that each falls into:
+
+- **Short-read mapping and variant calling.** A sequencer produces many short, slightly wrong copies of pieces of a genome; mapping a read means finding where it fits within a few edits, and positions where many reads disagree with the reference are candidate variants. This is the many-queries, low-error regime in which the index filters win (Section 5.2); Section 4.17 shows the read-to-alignment output.
+- **Primer and probe search.** A PCR primer or hybridisation probe must bind its target and nothing else, so one searches a genome for near copies within a few mismatches or gaps to find unintended binding sites; k is small and the sequence is short.
+- **CRISPR off-target search.** A guide of about twenty bases can cut sites that differ from it by a few substitutions or small gaps; listing every genome position within k edits of the guide gives the candidate off-target sites. The pattern is short, so k/m is large for even a few edits and the scan or Landau-Vishkin regime is relevant.
+- **Metagenomics and species identification.** Reads from a mixed sample are compared with reference genomes while tolerating strain differences, to see which organisms are present. At 10% to 15% divergence, as in our human against orangutan test, filtering loses most of its advantage (Section 4.16), which matches the known difficulty of comparing distant species.
+- **Barcode and UMI matching.** Short sample or molecule barcodes are changed by sequencing errors; assigning a read to the nearest barcode within k edits recovers it.
+- **Beyond DNA.** The same algorithms find dictionary words close to a misspelled word, near-duplicate passages in plagiarism and duplicate detection, and wrongly recognised words after optical character recognition; with a larger alphabet exact seeds are more selective and filters work better.
 
 ## 2. Algorithm
+
+We implement five exact ideas, from slow and simple to fast and index based, plus a BLAST-like heuristic. Each subsection says in plain words what the method does and then gives the pseudocode. Notation is introduced below.
 
 All algorithms are in `src/approx.cpp` (C++17). Notation: text T[0..n), pattern P[0..m), threshold k, alphabet {A,C,G,T}; any other character (N) matches nothing. w = 64 is the machine word size, B = ceil(m/w).
 
@@ -45,6 +79,9 @@ All algorithms are in `src/approx.cpp` (C++17). Notation: text T[0..n), pattern 
 ![DP matrix with band, diagonals, seed hit and candidate window](../results/dp_matrix.png)
 
 ### 2.1 Sellers DP (baseline and oracle)
+
+*In plain words:* fill a table with the cheapest cost of matching each prefix of the read at each place in the genome, and report the places where the whole read costs at most k.
+
 ```
 D[0][j] = 0 for all j ; D[i][0] = i
 D[i][j] = min( D[i-1][j-1] + [P_i != T_j],  D[i-1][j] + 1,  D[i][j-1] + 1 )
@@ -52,6 +89,9 @@ report end j when D[m][j] <= k          (one column kept, O(m) space)
 ```
 
 ### 2.2 Ukkonen cutoff (banded) DP
+
+*In plain words:* once a cell's cost is above k it can never lead to a match, so only the top part of each column needs computing.
+
 ```
 lact = min(m, k)                                   // last row whose value is <= k
 for each text char t:
@@ -62,6 +102,9 @@ for each text char t:
 Rows below `lact + 1` are never computed.
 
 ### 2.3 Myers bit-vector (blocks of 64 rows)
+
+*In plain words:* instead of one number per table cell, keep the differences between neighbouring cells (+1, 0, -1) as bits, so one machine word updates 64 cells at once.
+
 State per block: `Pv` (rows whose vertical delta is +1), `Mv` (rows whose vertical delta is -1). `Eq` is the match mask of the current text character, `hin` the horizontal delta entering the block from above (0 for block 0, because D[0][j] = 0).
 ```
 advance_block(Pv, Mv, Eq, hin):                    // returns hout
@@ -77,6 +120,9 @@ report when score <= k
 ```
 
 ### 2.4 Pigeonhole filter, equal split (`filter`)
+
+*In plain words:* if a read has at most k errors, at least one of k + 1 pieces of it is error free. Look those pieces up in an index and check only the neighbourhoods they point to.
+
 ```
 q = floor(m / (k+1)); seeds = { P[i*q .. i*q + min(q,11)) : i = 0..k }       // prefixes of k+1 equal pieces
 H = total index hits of the seeds                                            // index: 11-mer table of T
@@ -87,6 +133,9 @@ merge overlapping windows; run Myers on each merged window
 The index is a direct-address table over all 4^11 11-mers (CSR layout, 16 MB plus 4n bytes). A seed shorter than 11 characters is looked up as a contiguous range of the table; the few text positions that have no indexed 11-mer (text tail, or an N inside the next 11 characters) are checked directly.
 
 ### 2.5 Frequency-aware filter (`filter_fa`, our variant)
+
+*In plain words:* cut the read into k + 1 pieces so that the pieces are as rare in the genome as possible, which leaves fewer places to check.
+
 Instead of equal pieces, choose k+1 pairwise disjoint substrings of P (lengths 1 to 11, gaps allowed) that minimise the total number of occurrences in T.
 ```
 cnt[a][L] = occurrences in T of P[a .. a+L)                 // one index lookup each, a < m, L <= 11
@@ -96,9 +145,12 @@ f[j][i] = min( f[j][i-1],                                   // character i-1 not
 choose the seeds by backtracking from f[k+1][m]; then proceed as in 2.4
 ```
 
-**Cheaper seed selection (phase 3A).** The DP above is unchanged, but its inputs are cheaper: (1) prefix-count tables cnt_L[c] for L = 6..10, built with the index (5.4 MB), so the count of a seed costs one load instead of two random loads into the 16.8 MB offset table; (2) seed lengths are limited to [s0 - 2, min(11, s0 + 2)] with s0 = min(floor(m/(k+1)), 11) (the cap), which cuts the table and DP size 3 to 4 times for m = 100 (the equal split's seeds have length s0 and stay in the family); (3) reused flat buffers instead of nested vectors. The original selection is kept as `filter_fa_full`, and env knobs `APPROX_SEL`, `APPROX_CAP` choose the variant for the comparison in Section 4.9.
+**Cheaper seed selection.** The DP above is unchanged, but its inputs are cheaper: (1) prefix-count tables cnt_L[c] for L = 6..10, built with the index (5.4 MB), so the count of a seed costs one load instead of two random loads into the 16.8 MB offset table; (2) seed lengths are limited to [s0 - 2, min(11, s0 + 2)] with s0 = min(floor(m/(k+1)), 11) (the cap), which cuts the table and DP size 3 to 4 times for m = 100 (the equal split's seeds have length s0 and stay in the family); (3) reused flat buffers instead of nested vectors. The original selection is kept as `filter_fa_full`, and env knobs `APPROX_SEL`, `APPROX_CAP` choose the variant for the comparison in Section 4.10.
 
 ### 2.6 Cost model and fallback rule
+
+*In plain words:* use the number of seed hits to predict whether the filter or a plain scan will be faster, and scan when the filter would lose.
+
 With H seed hits, window length L_w = m + 2k, and lambda = H L_w / n, the model assumes hits are spread uniformly: merged windows W ~ H e^(-lambda), verified length V ~ n (1 - e^(-lambda)).
 ```
 t_filter = c_hit H + c_win W + c_bp B V   (+ c_sel m 11 for filter_fa)
@@ -107,9 +159,12 @@ fall back to a full Myers scan when t_filter > t_scan
 ```
 The constants (nanoseconds) are fitted by non-negative least squares (all constants >= 0) on the synthetic genome, with calibration points that cover the crossover (k up to 25), and evaluated on E. coli 536. The rule is applied once before windows are built (using the estimate) and once after (with the exact merged length).
 
-**Occupancy cost model (phase 3A).** For choosing between seed sets the uniform-hit estimate of W and V is replaced by measured occupancy: the hits of a seed set are dropped into bins of width m + 2k by diagonal (p - a); occupied bins estimate the verified length V = occupied * (m + 2k) and runs of occupied bins estimate the merged windows W, and the cost is c_hit H + c_win W + c_bp B V. For uniformly placed hits this equals the Poisson estimate; for clustered hits (repeats) it sees that they merge into few windows, which the Poisson estimate cannot. Below 64 hits every hit is charged its own window (no bins). The pass is O(H).
+**Occupancy cost model.** For choosing between seed sets the uniform-hit estimate of W and V is replaced by measured occupancy: the hits of a seed set are dropped into bins of width m + 2k by diagonal (p - a); occupied bins estimate the verified length V = occupied * (m + 2k) and runs of occupied bins estimate the merged windows W, and the cost is c_hit H + c_win W + c_bp B V. For uniformly placed hits this equals the Poisson estimate; for clustered hits (repeats) it sees that they merge into few windows, which the Poisson estimate cannot. Below 64 hits every hit is charged its own window (no bins). The pass is O(H).
 
 ### 2.7 BLAST-style heuristic (`blast1`, `blast2`)
+
+*In plain words:* find short exact matches, extend them, keep the promising ones. It is fast, but it can miss real matches.
+
 ```
 for every 11-mer of P found in the index: record (diagonal = p - a, offset a)
 one-hit mode: every hit triggers an ungapped extension
@@ -120,12 +175,18 @@ if the extension score >= 34 (a hit-segment pair, HSP): run Myers on the window 
 Differences from real BLAST (blastn): exact 11-mer seeds only (no neighbourhood words, no substitution matrix); a fixed raw-score cutoff instead of E-values and Karlin-Altschul statistics; no gapped X-drop alignment, an HSP instead triggers an exact Myers scan of a window (so every reported match is genuine, but recall depends only on the seeding and the cutoff); no low-complexity masking; no database-level statistics; DNA only. It is a model of BLAST's seed-and-extend logic, not a re-implementation.
 
 ### 2.8 Baselines from libraries
+
+*In plain words:* these libraries return the best place for a read, not every place within k.
+
 - **Edlib** (`pip install edlib`, HW mode, `task="locations"`): returns the minimum distance and only the end positions achieving it.
 - **WFA2** (`pip install pywfa`, ends-free, Levenshtein): returns one best alignment per read.
 
 Both therefore answer "best match per read", a different question from "all ends within k". They are timed (including about 0.1 ms of Python call overhead) and checked for consistency, never compared as all-match sets. A small case shows the difference (`tests/edlib_semantics.py`): for T = TTACGTTTTACGATT, P = ACGT, k = 1, Sellers reports ends {4, 5, 6, 11, 12, 13}, while Edlib reports distance 0 and only end {5}.
 
 ### 2.9 Landau-Vishkin diagonal algorithm (`lv`)
+
+*In plain words:* for each diagonal of the table remember only how far we can get with e errors, and skip runs of matching characters in one step.
+
 ```
 L[d][e] = furthest row i reached on diagonal d = j - i (j = text column) with at most e errors;  d runs from -k to n - m + k
 L[d][0] = slide(d, 0)                         for d >= 0      (row 0 is free on every diagonal d >= 0)
@@ -137,9 +198,14 @@ report end index m + d - 1 for every diagonal d with L[d][e] = m for some e <= k
 ```
 Only the layers e - 1 and e are stored. With direct comparison the work is O(1) expected per cell on random text, so O(nk) expected, and O(nm) in the worst case (long repeats). A longest-common-extension structure (suffix array, LCP array, range-minimum queries) would give O(nk) in the worst case; it is **not implemented**.
 
-**Faster implementation (phase 3A).** The recurrence is unchanged but `lv` is restructured: the text is packed 2 bits per base once per text, every 32-base window of the pattern is precomputed once per read, and the extension is the XOR of two windows followed by count-trailing-zeros (a mismatch is the lowest non-zero 2-bit group), with no per-character loop. The layer step runs in tiles: a vectorisable pass computes the three-way maximum, and a branch-free pass extends. A chunk of 2,048 diagonals is carried through all k + 1 layers in L1-sized buffers (temporal blocking: layer e needs k - e extra diagonals on each side, about 3% recomputation at k = 30). Where the CPU has AVX-512 (checked at compile time), the extension pass handles 8 cells per iteration with two gathers (pattern window by row, an unaligned text window by byte offset, giving 29-base compares) and `lzcnt`; otherwise a scalar loop is used, and texts or patterns containing N always use the scalar loop. N is handled exactly: packed N is code 0, so the extension is truncated at the first N of the text at or after the start and the first N of the pattern. The earlier implementation remains as `lv_direct`, and the streamed-layer packed version as `lv_stream`, for comparison.
+**Faster implementation.** The recurrence is unchanged but `lv` is restructured: the text is packed 2 bits per base once per text, every 32-base window of the pattern is precomputed once per read, and the extension is the XOR of two windows followed by count-trailing-zeros (a mismatch is the lowest non-zero 2-bit group), with no per-character loop. The layer step runs in tiles: a vectorisable pass computes the three-way maximum, and a branch-free pass extends. A chunk of 2,048 diagonals is carried through all k + 1 layers in L1-sized buffers (temporal blocking: layer e needs k - e extra diagonals on each side, about 3% recomputation at k = 30).
+
+Where the CPU has AVX-512 (checked at compile time), the extension pass handles 8 cells per iteration with two gathers (pattern window by row, an unaligned text window by byte offset, giving 29-base compares) and `lzcnt`; otherwise a scalar loop is used, and texts or patterns containing N always use the scalar loop. N is handled exactly: packed N is code 0, so the extension is truncated at the first N of the text at or after the start and the first N of the pattern. The earlier implementation remains as `lv_direct`, and the streamed-layer packed version as `lv_stream`, for comparison.
 
 ### 2.10 Myers with block pruning (`myers_pruned`)
+
+*In plain words:* apply the cutoff idea of Section 2.2 to blocks of 64 rows and skip blocks that cannot contain a cell with value at most k.
+
 ```
 S[b] = D[last row of block b][current column];  blocks 0..y are active;  y starts at the block holding row min(m, k)
 for each text char:
@@ -151,11 +217,17 @@ for each text char:
 This is Ukkonen's cutoff applied to blocks of 64 rows; about ceil(k/64) + 1 blocks are active instead of B. For m <= 64 (one block) both `myers` and `myers_pruned` use a register-only single-word loop (the recurrence of 2.3 with hin = 0, all state in registers, no vectors or bookkeeping); Peq is built once per read (`MyersPat`), also for the windows of a filtered read.
 
 ### 2.11 Window-aware seed selection (`filter_fa_w`)
+
+*In plain words:* a rare seed can still be costly if its hits are scattered, so count the windows a seed creates, not only its hits.
+
 The DP of 2.5 with the cost of a seed changed from its number of hits to `hits + lambda * windows`, where `windows` is the number of merged windows made by that seed's own hits (clusters of hit diagonals no more than m + 2k apart) and `lambda = (c_win + c_bp B (m + 2k)) / c_hit` from the fitted cost model. Seeds shorter than 9 characters, or with more hits than a cap (20,000 by default), are charged one window per hit. Everything else is as in `filter_fa`, so exactness is unchanged.
 
-**Gated and binned window objective (phase 3B).** `filter_fa_w` now estimates a seed's windows by binning its hit diagonals into bins of width m + 2k (distinct occupied bins, O(hits), no sort; `APPROX_WBIN=0` restores the sorted estimate), which makes its selection 10 to 20 times cheaper. `filter_fa_wg` runs the window-aware selection only for repeat-heavy reads: a read is flagged when the largest hit count among its equal-split seeds is at least 100 and at least 20 times the count expected for a random seed of that length (n / 4^s0); otherwise it uses the fast `filter_fa` selection. Every choice of seeds is exact (Corollary 5).
+**Gated and binned window objective.** `filter_fa_w` estimates a seed's windows by binning its hit diagonals into bins of width m + 2k (distinct occupied bins, O(hits), no sort; `APPROX_WBIN=0` restores the sorted estimate), which makes its selection 10 to 20 times cheaper. `filter_fa_wg` runs the window-aware selection only for repeat-heavy reads: a read is flagged when the largest hit count among its equal-split seeds is at least 100 and at least 20 times the count expected for a random seed of that length (n / 4^s0); otherwise it uses the fast `filter_fa` selection. Every choice of seeds is exact (Corollary 5).
 
 ### 2.12 Per-query method choice (`filter_auto`)
+
+*In plain words:* for each read, estimate the cost of each way of searching and run the cheapest.
+
 ```
 eq = equal-split seeds ; H_eq = hits from the index ranges (k + 1 lookups)
 if c_hit * H_eq > t_scan: run the Myers scan                                  (hit cost alone exceeds a scan)
@@ -166,11 +238,14 @@ else:
     if cost_eq not computed and c_hit * H_eq < cost_fa: cost_eq = occupancy_cost(eq)          (otherwise eq cannot win)
     run the cheapest of: equal split (cost_eq), frequency-aware split (cost_fa), Myers scan (t_scan = a_scan * n * B)
 ```
-(Phase 3B) When the best cost found so far exceeds 2 estimated selection costs, `filter_auto` also looks at the generalised filters of Section 2.14: for s = 2 and s = 3 it selects k + s seeds, reads their hit counts, predicts the candidate windows W with the Poisson-binomial formula below (times an empirical 2.0 fitted on *E. coli* 536), costs the option as c_hit H + c_win W + c_bp B V with V = min(n, W (m + 3k)), and takes it if it is cheaper than everything else. The prediction: a band of k + 1 diagonals contains a hit of seed i with probability p_i = 1 - exp(-h_i (k + 1) / n); the number of bands holding at least s distinct seeds is n / (k + 1) times the Poisson-binomial tail P(at least s of the p_i), plus one window for the read's own locus. It assumes uniformly placed hits; repeats only lower the true count.
+When the best cost found so far exceeds 2 estimated selection costs, `filter_auto` also looks at the generalised filters of Section 2.13: for s = 2 and s = 3 it selects k + s seeds, reads their hit counts, predicts the candidate windows W with the Poisson-binomial formula below (times an empirical 2.0 fitted on *E. coli* 536), costs the option as c_hit H + c_win W + c_bp B V with V = min(n, W (m + 3k)), and takes it if it is cheaper than everything else. The prediction: a band of k + 1 diagonals contains a hit of seed i with probability p_i = 1 - exp(-h_i (k + 1) / n); the number of bands holding at least s distinct seeds is n / (k + 1) times the Poisson-binomial tail P(at least s of the p_i), plus one window for the read's own locus. It assumes uniformly placed hits; repeats only lower the true count.
 
-All branches are exact. The constants c_hit, c_win, c_bp, a_scan come from `costmodel.json` (fitted on the synthetic genome); the seed-selection cost per DP unit is an online estimate (a running average, 0.9 / 0.1, of the measured selection time divided by its DP units), so no further calibration is needed. The skip multiplier (1.0) and the length cap (2) were chosen on *E. coli* 536 and the synthetic genome only (Section 4.9).
+All branches are exact. The constants c_hit, c_win, c_bp, a_scan come from `costmodel.json` (fitted on the synthetic genome); the seed-selection cost per DP unit is an online estimate (a running average, 0.9 / 0.1, of the measured selection time divided by its DP units), so no further calibration is needed. The skip multiplier (1.0) and the length cap (2) were chosen on *E. coli* 536 and the synthetic genome only (Section 4.10).
 
-### 2.14 Generalised pigeonhole (`filter_s2`, `filter_s3`, `filter_fs2`, `filter_fs3`)
+### 2.13 Generalised pigeonhole (`filter_s2`, `filter_s3`, `filter_fs2`, `filter_fs3`)
+
+*In plain words:* short seeds hit everywhere by chance, but several seeds hitting close together on the same diagonal rarely happens by chance, so require that before verifying.
+
 ```
 J = k + s disjoint seeds (equal split, or the fast frequency-aware DP with J seeds: filter_fs*)
 keys = all seed hits as (diagonal p - a, seed), sorted
@@ -180,7 +255,10 @@ verify the merged windows with Myers
 ```
 With s = 1 this is the classic filter (`filter_s1` is checked equal to it). The point is that short seeds (needed when k/m is large) hit by chance everywhere, but s chance hits inside one band of k diagonals are far rarer than one chance hit. Note the count: k + s pieces leave at least **s** untouched pieces after at most k edits (not s + 1); requiring s + 1 hits would need k + s + 1 pieces.
 
-### 2.13 Alignment output (`map`, `scripts/map_reads`)
+### 2.14 Alignment output (`map`, `scripts/map_reads`)
+
+*In plain words:* take the exact end positions, pick the best, and trace back through the table to write the alignment.
+
 ```
 ends = exact end positions with distance <= k (the filter of 2.4, with its fallback)
 group ends into clusters whose windows overlap; for each cluster fill the semi-global DP over [first_end + 1 - (m + k), last_end]
@@ -189,96 +267,176 @@ CIGAR operators (SAM semantics with = and X): = match, X mismatch, I extra read 
 ```
 `scripts/map_reads GENOME READS -k K [--format tsv|sam]` writes one best alignment per read (forward strand only): TSV columns read, length, status, distance, start (0-based), end (exclusive), strand, cigar, best_ends; or SAM-like lines with `NM:i:` set to the distance. Reads with no alignment within k are reported as unmapped.
 
-
 ## 3. Proof of Correctness
 
+This section shows that every exact method returns the same set of end positions as Sellers' recurrence. We start from the recurrence itself and then prove each speed-up in turn: the cutoff, the pigeonhole filters, the bit-vector scan, the diagonal method, block pruning and the s-hit filters. Each result starts with a short proof idea, followed by the full argument.
+
 Throughout, D[i][j] is the Sellers matrix: D[i][j] = min over starts s of ed(P[1..i], T[s+1..j]), with the empty substring allowed.
+
+*Proof idea.* Look at the last column of any optimal alignment. It is a match or mismatch, a deleted read character or an inserted text character, and what is left is a smaller instance of the same problem.
 
 **Theorem 1 (Sellers).** The recurrence of 2.1 computes D.
 *Proof.* Induction on i + j. For i = 0 the empty prefix matches the empty substring at cost 0; for j = 0 the only option is i deletions. For i, j >= 1 take an optimal alignment of P[1..i] with some T[s+1..j] and look at its last column. It is a match or mismatch of P_i with T_j (cost [P_i != T_j] plus an optimal alignment for (i-1, j-1)), or P_i deleted (cost 1 plus an optimal alignment for (i-1, j)), or T_j inserted (cost 1 plus an optimal alignment for (i, j-1)). Each remainder is again an alignment of a pattern prefix against a text substring with a free start, so it is counted by D. The minimum of the three is therefore D[i][j]. For the case s = j the alignment is only deletions, covered by the (i-1, j) term. Position j is reported iff D[m][j] <= k. QED
 
-**Lemma 2 (neighbouring cells).** For all valid i, j: (a) |D[i][j] - D[i-1][j]| <= 1, (b) |D[i][j] - D[i][j-1]| <= 1, (c) 0 <= D[i][j] - D[i-1][j-1] <= 1.
-*Proof.* "<= +1" in each direction is the recurrence (delete P_i, insert T_j, or add one match/mismatch column). For (a), D[i-1][j] <= D[i][j] + 1: in an optimal alignment for (i, j) delete the column of P_i. If P_i was matched or mismatched with a text character, that character becomes an insertion (cost +1 at most); if P_i was deleted the cost drops by 1. For (b), D[i][j-1] <= D[i][j] + 1: delete the column of T_j; if it was aligned to a pattern character that character becomes a deletion (+1 at most), if it was an insertion the cost drops by 1, and if T_j was the first character of the substring the substring becomes empty, which is allowed. For the lower bound of (c) take an optimal alignment of cost d for (i, j) and split on its last column. If it matches or mismatches P_i with T_j, dropping that column gives an alignment for (i-1, j-1) of cost at most d. If P_i is deleted, the rest is an alignment for (i-1, j) of cost d - 1, so D[i-1][j] <= d - 1 and by (b) D[i-1][j-1] <= D[i-1][j] + 1 <= d. If T_j is inserted, the rest is an alignment for (i, j-1) of cost d - 1, so D[i][j-1] <= d - 1 and by (a) D[i-1][j-1] <= D[i][j-1] + 1 <= d. QED
+*Proof idea.* Removing the last column of an alignment changes its cost by at most one in either direction, and the lower bound follows by splitting on the type of the last column.
+
+**Lemma 2 (neighbouring cells).** For all valid i, j: (a) |D[i][j] - D[i-1][j]| <= 1, (b) |D[i][j] - D[i][j-1]| <= 1, (c) 0 <= D[i][j] - D[i-1][j-1] <= 1. *Proof.* "<= +1" in each direction is the recurrence (delete P_i, insert T_j, or add one match/mismatch column). For (a), D[i-1][j] <= D[i][j] + 1: in an optimal alignment for (i, j) delete the column of P_i. If P_i was matched or mismatched with a text character, that character becomes an insertion (cost +1 at most); if P_i was deleted the cost drops by 1.
+
+For (b), D[i][j-1] <= D[i][j] + 1: delete the column of T_j; if it was aligned to a pattern character that character becomes a deletion (+1 at most), if it was an insertion the cost drops by 1, and if T_j was the first character of the substring the substring becomes empty, which is allowed. For the lower bound of (c) take an optimal alignment of cost d for (i, j) and split on its last column. If it matches or mismatches P_i with T_j, dropping that column gives an alignment for (i-1, j-1) of cost at most d. If P_i is deleted, the rest is an alignment for (i-1, j) of cost d - 1, so D[i-1][j] <= d - 1 and by (b) D[i-1][j-1] <= D[i-1][j] + 1 <= d.
+
+If T_j is inserted, the rest is an alignment for (i, j-1) of cost d - 1, so D[i][j-1] <= d - 1 and by (a) D[i-1][j-1] <= D[i][j-1] + 1 <= d. QED
+
+*Proof idea.* A cell's value can grow by at most one per column, so the rows holding values at most k can reach only one row further each step; stale values below that row are always above k.
 
 **Theorem 3 (Ukkonen cutoff).** A reports j iff D[m][j] <= k.
 *Proof.* Let lact_j be the largest row with D[i][j] <= k (row 0 always qualifies). By Lemma 2(c), if D[i][j+1] <= k then D[i-1][j] <= k, so i - 1 <= lact_j; hence all cells of column j+1 with value <= k lie in rows [0, lact_j + 1], which are exactly the rows computed. Invariant: after column j, every stored C[i] is either the exact D[i][j] or a value greater than k. Inputs that are > k (at least k + 1) contribute at least k + 1 to the minimum (k + 2 through the up and left terms), so they never create a wrong value <= k, and every output <= k is exact. A stored value <= k belongs to a row <= lact_j, which is recomputed in column j+1 (rows up to lact_j + 1 are recomputed), so stale values are always > k. Finally lact_j = m iff D[m][j] <= k. QED
 
-**Theorem 4 (pigeonhole for ANY k+1 disjoint seeds, with window offset).** Let s_0, ..., s_k be k+1 pairwise disjoint substrings of P (a seed may be any substring, in particular a prefix of a piece), s_t = P[a_t .. a_t + len_t). If ed(P, T[i..j)) <= k then there is a t and a text position p with T[p..p + len_t) = s_t exactly, and the whole aligned substring lies inside W = [p - a_t - k, p - a_t + m + k).
-*Proof.* Take an optimal alignment with at most k edit operations. An operation touches a seed if it substitutes or deletes a pattern character of that seed, or inserts a text character between two characters of that seed. Each operation touches at most one seed, since seeds are disjoint. So at most k seeds are touched and some seed s_t is untouched: its characters are aligned one-to-one to consecutive text characters, giving an exact occurrence at some p. The text aligned to P[0..a_t) has length a_t + delta1 and the text aligned to P[a_t + len_t .. m) has length (m - a_t - len_t) + delta2, where delta1 and delta2 are (insertions - deletions) in the two parts, so |delta1| + |delta2| <= k. Hence the start i = p - a_t - delta1 >= p - a_t - k and the end j = p + len_t + (m - a_t - len_t) + delta2 = p - a_t + m + delta2 <= p - a_t + m + k. QED
+*Proof idea.* Each edit can spoil at most one piece, so with k + 1 pieces at least one piece survives. Insertions and deletions shift the read against the text by at most k in total, which bounds the window.
 
-**Corollary 5 (the filters are exact).** `filter` and `filter_fa` report exactly the end positions reported by Sellers.
-*Proof.* Completeness: by Theorem 4 every occurrence has a seed hit, and its window contains the whole alignment, so Myers on the (merged) window, which tries every start inside it, reports the same end. Soundness: windows are substrings of T, so any end reported by Myers on a window is the end of a substring of T within k edits. Merging windows only enlarges them, and windows are clamped to [0, n): the aligned substring is a substring of T, so clamping at the text ends removes nothing it needs. The seed lookup is exact: positions not covered by the 11-mer table are checked directly, and a seed containing N has no occurrence, because N matches nothing (such a seed is always touched, since its N must be substituted or deleted, so it is never the untouched seed that Theorem 4 needs). The fallback is a full Myers scan, exact by Theorem 7. QED
+**Theorem 4 (pigeonhole for ANY k+1 disjoint seeds, with window offset).** Let s_0, ..., s_k be k+1 pairwise disjoint substrings of P (a seed may be any substring, in particular a prefix of a piece), s_t = P[a_t .. a_t + len_t). If ed(P, T[i..j)) <= k then there is a t and a text position p with T[p..p + len_t) = s_t exactly, and the whole aligned substring lies inside W = [p - a_t - k, p - a_t + m + k). *Proof.* Take an optimal alignment with at most k edit operations. An operation touches a seed if it substitutes or deletes a pattern character of that seed, or inserts a text character between two characters of that seed. Each operation touches at most one seed, since seeds are disjoint.
+
+So at most k seeds are touched and some seed s_t is untouched: its characters are aligned one-to-one to consecutive text characters, giving an exact occurrence at some p. The text aligned to P[0..a_t) has length a_t + delta1 and the text aligned to P[a_t + len_t .. m) has length (m - a_t - len_t) + delta2, where delta1 and delta2 are (insertions - deletions) in the two parts, so |delta1| + |delta2| <= k. Hence the start i = p - a_t - delta1 >= p - a_t - k and the end j = p + len_t + (m - a_t - len_t) + delta2 = p - a_t + m + delta2 <= p - a_t + m + k. QED
+
+*Proof idea.* Completeness is Theorem 4. Soundness holds because only real substrings of T are verified, by an exact algorithm.
+
+**Corollary 5 (the filters are exact).** `filter` and `filter_fa` report exactly the end positions reported by Sellers. *Proof.* Completeness: by Theorem 4 every occurrence has a seed hit, and its window contains the whole alignment, so Myers on the (merged) window, which tries every start inside it, reports the same end. Soundness: windows are substrings of T, so any end reported by Myers on a window is the end of a substring of T within k edits. Merging windows only enlarges them, and windows are clamped to [0, n): the aligned substring is a substring of T, so clamping at the text ends removes nothing it needs.
+
+The seed lookup is exact: positions not covered by the 11-mer table are checked directly, and a seed containing N has no occurrence, because N matches nothing (such a seed is always touched, since its N must be substituted or deleted, so it is never the untouched seed that Theorem 4 needs). The fallback is a full Myers scan, exact by Theorem 7. QED
 The equal-split seeds (`min(q,11)`-character prefixes of k+1 pieces of length q) are disjoint, so Theorem 4 applies; the same holds for the DP-chosen seeds.
 
-**Lemma 6 (the DP picks minimum-occurrence cuts).** Let cnt(a, L) be the number of occurrences of P[a..a+L) in T. Let f[j][i] be the minimum of the sum of cnt over all sets of j pairwise disjoint seeds of length at most 11 inside P[0..i). Then f satisfies f[0][i] = 0, f[j][i] = +infinity if i < j (j disjoint non-empty seeds do not fit), and otherwise f[j][i] = min(f[j][i-1], min_{L} f[j-1][i-L] + cnt(i-L, L)), and f[k+1][m] is the minimum total number of seed hits over all valid (k+1)-seed choices. In particular the DP never has more hits than the equal split.
-*Proof.* Induction on (j, i). An optimal set of j seeds inside P[0..i) either leaves character i-1 uncovered (then it lies inside P[0..i-1): value f[j][i-1]) or covers it. In the second case the seed that covers it ends exactly at i (the prefix ends there) and has some length L <= min(11, i); the other j-1 seeds are disjoint from it and lie inside P[0..i-L), and any optimal choice for them can be combined with this seed, so the value is f[j-1][i-L] + cnt(i-L, L). Taking the minimum over both cases gives the recurrence. The equal-split seeds are k+1 disjoint seeds of length at most 11, hence a feasible point, so the optimum is at most their total. QED
+*Proof idea.* An ordinary dynamic program over prefixes: either the last read character is unused, or the last seed ends there and the rest is a smaller instance.
+
+**Lemma 6 (the DP picks minimum-occurrence cuts).** Let cnt(a, L) be the number of occurrences of P[a..a+L) in T. Let f[j][i] be the minimum of the sum of cnt over all sets of j pairwise disjoint seeds of length at most 11 inside P[0..i). Then f satisfies f[0][i] = 0, f[j][i] = +infinity if i < j (j disjoint non-empty seeds do not fit), and otherwise f[j][i] = min(f[j][i-1], min_{L} f[j-1][i-L] + cnt(i-L, L)), and f[k+1][m] is the minimum total number of seed hits over all valid (k+1)-seed choices. In particular the DP never has more hits than the equal split. *Proof.* Induction on (j, i).
+
+An optimal set of j seeds inside P[0..i) either leaves character i-1 uncovered (then it lies inside P[0..i-1): value f[j][i-1]) or covers it. In the second case the seed that covers it ends exactly at i (the prefix ends there) and has some length L <= min(11, i); the other j-1 seeds are disjoint from it and lie inside P[0..i-L), and any optimal choice for them can be combined with this seed, so the value is f[j-1][i-L] + cnt(i-L, L). Taking the minimum over both cases gives the recurrence. The equal-split seeds are k+1 disjoint seeds of length at most 11, hence a feasible point, so the optimum is at most their total.
+
+QED
 This optimises hit count, not running time (hits differ in how much they merge), and seeds longer than 11 are not considered because the index covers 11-mers.
 
-**Theorem 7 (Myers bit-vector).** `advance_block` and the surrounding loop maintain: after processing T[1..j], (Pv, Mv) encode the vertical deltas of column j, and `score` = D[m][j].
-*Setup.* For column j let dv_i = D[i][j] - D[i-1][j] and, for the step from column j-1, dh_i = D[i][j] - D[i][j-1]. By Lemma 2 all of these lie in {-1, 0, +1}. Row 0 has dh_0 = 0 because D[0][j] = 0 for all j. Bit i-1 of the word stands for row i. `Pv` has the bit set where dv = +1 in the old column (before the step) and `Mv` where dv = -1; `Eq` has the bit set where P_i = T_j (and no bit for N). Write pv_i, mv_i, e_i for those bits, and ph_i, mh_i for the indicators dh_i = +1, dh_i = -1 of the new step.
+*Proof idea.* Store each column of the table as two bit masks, the +1 and the -1 vertical differences. The new column follows from the old by a few bitwise rules, one integer addition carries the dependency down the rows, and blocks hand one horizontal difference to each other.
+
+**Theorem 7 (Myers bit-vector).** `advance_block` and the surrounding loop maintain: after processing T[1..j], (Pv, Mv) encode the vertical deltas of column j, and `score` = D[m][j]. *Setup.* For column j let dv_i = D[i][j] - D[i-1][j] and, for the step from column j-1, dh_i = D[i][j] - D[i][j-1]. By Lemma 2 all of these lie in {-1, 0, +1}. Row 0 has dh_0 = 0 because D[0][j] = 0 for all j. Bit i-1 of the word stands for row i. `Pv` has the bit set where dv = +1 in the old column (before the step) and `Mv` where dv = -1; `Eq` has the bit set where P_i = T_j (and no bit for N). Write pv_i, mv_i, e_i for those bits, and ph_i, mh_i for the indicators dh_i = +1, dh_i = -1 of the new step.
+
 *Step 1: the cell rule.* Fix a cell (i, j) and write x = D[i-1][j-1]. Put a = D[i][j-1] - x = old dv_i and b = D[i-1][j] - x = dh_{i-1} (the horizontal delta entering the cell from above); both lie in {-1, 0, +1}. The recurrence is translation invariant, so D[i][j] - x = min([P_i != T_j], b + 1, a + 1). Because a, b >= -1 the last two terms are >= 0. Hence D[i][j] - x = 0 if e_i = 1 or a = -1 or b = -1, and 1 otherwise. The outputs are the new vertical delta D[i][j] - D[i-1][j] = (D[i][j] - x) - b and the horizontal delta dh_i = (D[i][j] - x) - a.
-*Step 2: Boolean form of the outputs.* Let Xh_i = e_i OR mh_{i-1} (mh_0 = 0, or the injected hin, see Step 4), the condition "e_i or b = -1". Then D[i][j] - x = 0 exactly when Xh_i OR mv_i. Checking the cases: dh_i = +1 iff (D[i][j] - x = 0 and a = -1) or (D[i][j] - x = 1 and a = 0), i.e. ph_i = mv_i OR NOT(Xh_i OR pv_i) (when mv_i = 0 the second case is "not Xh and not pv"); dh_i = -1 iff (D[i][j] - x = 0 and a = +1), i.e. mh_i = pv_i AND Xh_i (pv_i and mv_i exclude each other). This is `Ph = Mv | ~(Xh | Pv)` and `Mh = Pv & Xh`. For the new vertical delta, with Xv_i = e_i OR mv_i: it is +1 iff (b = -1) or (D[i][j] - x = 1 and b = 0), i.e. new pv_i = mh_{i-1} OR NOT(Xv_i OR ph_{i-1}); it is -1 iff (D[i][j] - x = 0 and b = +1), i.e. new mv_i = ph_{i-1} AND Xv_i. Row i uses the horizontal deltas of row i-1, which is the shift by one bit: `Pv = (Mh<<1) | ~(Xv | (Ph<<1))` and `Mv = (Ph<<1) & Xv`.
-*Step 3: the carry chain computes Xh.* From Step 2, mh_i = pv_i AND Xh_i, so Xh_{i+1} = e_{i+1} OR (pv_i AND Xh_i), a recurrence going down the rows. Let S = (Eq AND Pv) + Pv with carries c_i into bit i (c_1 = 0 for the lowest bit). The carry out of bit i is the majority of (e_i pv_i, pv_i, c_i), which simplifies to c_{i+1} = pv_i AND (e_i OR c_i). By induction c_i = mh_{i-1}: it holds for the lowest bit, and mh_i = pv_i AND (e_i OR mh_{i-1}) = pv_i AND (e_i OR c_i) = c_{i+1}. The sum bit is (e_i pv_i) XOR pv_i XOR c_i, so ((S XOR Pv) OR Eq)_i = ((e_i pv_i) XOR c_i) OR e_i, which equals 1 if e_i = 1 and equals c_i = mh_{i-1} if e_i = 0. That is exactly e_i OR mh_{i-1} = Xh_i. This is `Xh = (((Eq & Pv) + Pv) ^ Pv) | Eq`.
-*Step 4: blocks.* Rows are split into blocks of 64. The first row of a block receives hin = dh of the row above (0 for block 0 because dh_0 = 0). In Step 2 this replaces mh_{i-1} by [hin < 0] and ph_{i-1} by [hin > 0] for the lowest row of the block. In Step 3 it means a carry-in of [hin < 0] into the chain, which the code injects as `Eq |= 1` for the Xh computation only (Xv is computed from the original Eq first, because Xv_i = e_i OR mv_i does not involve mh), and in the new Pv/Mv through `Mh |= 1` or `Ph |= 1` after the shift. `hout` is read before the shift from the block's top row (bit 63, or bit (m-1) mod 64 in the last block), and is the hin of the next block. Rows above m in the last block are padding; information only flows to higher bit positions (carries and shifts go upward), so they cannot change any row <= m.
+
+*Step 2: Boolean form of the outputs.* Let Xh_i = e_i OR mh_{i-1} (mh_0 = 0, or the injected hin, see Step 4), the condition "e_i or b = -1". Then D[i][j] - x = 0 exactly when Xh_i OR mv_i. Checking the cases: dh_i = +1 iff (D[i][j] - x = 0 and a = -1) or (D[i][j] - x = 1 and a = 0), i.e. ph_i = mv_i OR NOT(Xh_i OR pv_i) (when mv_i = 0 the second case is "not Xh and not pv"); dh_i = -1 iff (D[i][j] - x = 0 and a = +1), i.e. mh_i = pv_i AND Xh_i (pv_i and mv_i exclude each other). This is `Ph = Mv | ~(Xh | Pv)` and `Mh = Pv & Xh`.
+
+For the new vertical delta, with Xv_i = e_i OR mv_i: it is +1 iff (b = -1) or (D[i][j] - x = 1 and b = 0), i.e. new pv_i = mh_{i-1} OR NOT(Xv_i OR ph_{i-1}); it is -1 iff (D[i][j] - x = 0 and b = +1), i.e. new mv_i = ph_{i-1} AND Xv_i. Row i uses the horizontal deltas of row i-1, which is the shift by one bit: `Pv = (Mh<<1) | ~(Xv | (Ph<<1))` and `Mv = (Ph<<1) & Xv`. *Step 3: the carry chain computes Xh.* From Step 2, mh_i = pv_i AND Xh_i, so Xh_{i+1} = e_{i+1} OR (pv_i AND Xh_i), a recurrence going down the rows. Let S = (Eq AND Pv) + Pv with carries c_i into bit i (c_1 = 0 for the lowest bit).
+
+The carry out of bit i is the majority of (e_i pv_i, pv_i, c_i), which simplifies to c_{i+1} = pv_i AND (e_i OR c_i). By induction c_i = mh_{i-1}: it holds for the lowest bit, and mh_i = pv_i AND (e_i OR mh_{i-1}) = pv_i AND (e_i OR c_i) = c_{i+1}. The sum bit is (e_i pv_i) XOR pv_i XOR c_i, so ((S XOR Pv) OR Eq)_i = ((e_i pv_i) XOR c_i) OR e_i, which equals 1 if e_i = 1 and equals c_i = mh_{i-1} if e_i = 0. That is exactly e_i OR mh_{i-1} = Xh_i. This is `Xh = (((Eq & Pv) + Pv) ^ Pv) | Eq`. *Step 4: blocks.* Rows are split into blocks of 64. The first row of a block receives hin = dh of the row above (0 for block 0 because dh_0 = 0).
+
+In Step 2 this replaces mh_{i-1} by [hin < 0] and ph_{i-1} by [hin > 0] for the lowest row of the block. In Step 3 it means a carry-in of [hin < 0] into the chain, which the code injects as `Eq |= 1` for the Xh computation only (Xv is computed from the original Eq first, because Xv_i = e_i OR mv_i does not involve mh), and in the new Pv/Mv through `Mh |= 1` or `Ph |= 1` after the shift. `hout` is read before the shift from the block's top row (bit 63, or bit (m-1) mod 64 in the last block), and is the hin of the next block. Rows above m in the last block are padding; information only flows to higher bit positions (carries and shifts go upward), so they cannot change any row <= m.
+
 *Step 5: induction on columns and score.* Column 0 has D[i][0] = i, so every dv = +1: `Pv = all ones, Mv = 0`; the score is D[m][0] = m. The step j-1 to j, applied block by block (each block's hin is correct by the previous block's hout), maps the encoding of column j-1 to that of column j (Steps 1 to 4). The horizontal delta of row m is dh_m, the hout of the last block, so D[m][j] = D[m][j-1] + dh_m, which is how `score` is updated. Position j is reported iff score <= k, which by Theorem 1 is the same as Sellers. QED
 
-**Proposition 8 (the BLAST-style heuristic is sound but incomplete).** Every match it reports is genuine (verification is an exact Myers scan of a window, a substring of T). It can miss a true match: take m = 100 and an occurrence that differs from P by a substitution at every 10th position (10 edits, k = 10). Every exact run shared with P has length 9, shorter than an 11-mer, so no seed hits and nothing is reported although Sellers reports the end. The measured recall is in Section 5 and Section 6.
+*Proof idea.* Soundness comes from exact verification; a concrete read whose clean stretches are all shorter than the seed shows that it is incomplete.
 
-**Theorem 9 (Landau-Vishkin).** Let Lambda(d, e) = max { i : 0 <= i <= m, 0 <= i + d <= n, D[i][i+d] <= e } (minus infinity if empty). The array L of 2.9 equals Lambda, and the algorithm reports end j exactly when D[m][j] <= k.
-*Proof.* (i) *Prefix property.* By Lemma 2(c), D is non-decreasing along a diagonal (as i grows). So the rows of diagonal d with D <= e form an initial segment of the valid rows (valid rows start at row 0 for d >= 0 and at row -d, column 0, for d < 0), and Lambda(d, e) is its last row: every earlier row of the diagonal also has D <= e.
-(ii) *Base e = 0.* For d >= 0, D[i][i+d] = 0 iff P[0..i) = T[d..d+i) exactly (free start, N matches nothing), so Lambda(d, 0) = slide(d, 0). For d < 0 every cell has D >= -d > 0.
-(iii) *Step e >= 1, lower bound.* Each candidate is a cell with D <= e: from (i, i+d) with D <= e - 1, a substitution gives (i+1, i+d+1) on diagonal d, a text insertion from diagonal d - 1 gives the same row i on diagonal d, and a pattern deletion from diagonal d + 1 gives row i + 1 on diagonal d, each costing at most 1 by the recurrence (a candidate row beyond m is clamped to m, which is correct because D[m][m+d] <= e by Lemma 2; a candidate whose column would exceed n is discarded). A match step costs 0, so sliding along equal characters keeps D <= e. Hence the computed value is at most Lambda(d, e).
-*Upper bound.* Let r = Lambda(d, e). If D[r][r+d] <= e - 1 then r <= Lambda(d, e - 1), and the substitution candidate is at least Lambda(d, e - 1) (clamped to m), so the computed value is at least r. Otherwise D[r][r+d] = e. Walk back along the diagonal while the step into the cell is a zero-cost match, to the first cell (r1, r1+d) of this run of matches; P[i] = T[i+d] for r1 <= i < r. The value e at (r1, r1+d) was obtained by a non-match step (or r1 is the first valid row of a diagonal d < 0, reached by deletions from diagonal d + 1): by a mismatch from (r1 - 1, r1 + d - 1), whose D is e - 1, so r1 - 1 <= Lambda(d, e - 1); or by a deletion from (r1 - 1, r1 + d) on diagonal d + 1 with D = e - 1, so r1 - 1 <= Lambda(d + 1, e - 1); or by an insertion from (r1, r1 + d - 1) on diagonal d - 1 with D = e - 1, so r1 <= Lambda(d - 1, e - 1). In each case r1 is at most the maximum of the three candidates. Sliding from any start s with r1 <= s <= r reaches at least r over the run of matches, and a start s > r gives a value above r, contradicting the definition of r. So the computed value is at least r. By induction on e, L = Lambda.
-(iv) *Reporting.* D[m][m+d] <= k iff Lambda(d, k) = m; the end index is m + d - 1, and the condition m - k <= m + d <= n restricts d to [-k, n - m], inside the range processed (diagonals up to n - m + k are needed because at most k deletions lead from them to a diagonal <= n - m). Each diagonal is reported once. QED
-*Text-end remark (added in the docs review).* Because a cell whose best candidate lies in column n + 1 is stored as minus infinity, the equality L = Lambda is proved above for cells in columns below n; on the last text column (j = n, row < m, which occurs only on diagonals d > n - m) a stored value can be minus infinity although Lambda is finite. This does not change the reported set. From such a cell (i, n) the only continuation is to delete the remaining pattern characters, one per layer, and the candidate that starts this chain (L[d][e-1] + 1 on the next diagonal) is formed from the previous layer, where the cell was stored when it was first reached: an overflowing candidate means the cell was already stored at an earlier layer, and its successors were generated then. The cells that can be reported (row m, d <= n - m) never overflow, because all their candidates are clamped to row m or lie in a column at most n. This is an argument, not a full induction; it is backed by the cross-checks, which include texts from 50 bases and k above m (`tests/crosscheck.py`, `tests/test_lv.py`).
-*Cost.* There are (k + 1) layers and n - m + 2k + 1 diagonals, so O(nk) cells. On one diagonal the slides of successive layers start at or after the previous end, so they advance the row at most m times in total: O(nm) worst case; on random text a slide has expected length below 1/3, so O(nk) expected.
+**Proposition 8 (the BLAST-style heuristic is sound but incomplete).** Every match it reports is genuine (verification is an exact Myers scan of a window, a substring of T). It can miss a true match: take m = 100 and an occurrence that differs from P by a substitution at every 10th position (10 edits, k = 10). Every exact run shared with P has length 9, shorter than an 11-mer, so no seed hits and nothing is reported although Sellers reports the end. The measured recall is in Section 4.16.
 
-**Theorem 10 (block pruning).** `myers_pruned` reports j iff D[m][j] <= k.
-*Proof.* Let lact_j be the largest row with D[i][j] <= k (it is at least min(m, k) because D[i][j] <= i), and let bottom(y) be the last row of block y. *Invariant (A):* after column j, lact_j <= bottom(y) (all cells of blocks above y exceed k). *Invariant (B):* every computed cell value is an upper bound of the true D, and equals D whenever D <= k.
-(A) holds at column 0 because y starts at the block containing row min(m, k). For the step, Lemma 2(c) gives lact_{j+1} <= lact_j + 1, so lact_{j+1} can leave the active blocks only when lact_j = bottom(y), i.e. when D[bottom(y)][j] = S[y] <= k, which is exactly the condition that activates block y + 1 before the column is computed. Dropping block y when S[y] >= k + rows(y) is safe: vertical deltas are at least -1, so every cell of the block is at least S[y] - (rows(y) - 1) > k, and by (B) no true value there can be at most k (if a true value were at most k its computed value would be too).
-(B) for the newly activated block: its stand-in column has all vertical deltas +1 below the exact bottom of block y, so each stand-in value is S[y] + t, which is at least the true value (vertical bound of Lemma 2(a)); the cell rule of Theorem 7 stays valid because stand-in deltas and the computed horizontal deltas lie in {-1, 0, +1}. A cell with true D[i][j+1] <= k takes its value from a neighbour with true value at most k (diagonal: D[i-1][j] <= k; left: D[i][j] <= k - 1; up: D[i-1][j+1] <= k - 1); by (A) those neighbours lie in active blocks (or in the bottom of block y feeding the first row of an activated block), and by (B) they are computed exactly, so the cell is computed exactly; all other computed values are at least the true values, hence a computed value at most k is exact. The last block is active exactly when lact_j >= m can hold, so reporting when y = B - 1 and S[y] <= k is equivalent to D[m][j] <= k. QED
+*Proof idea.* Values never decrease along a diagonal, so the furthest row reachable with at most e errors describes the whole diagonal. It follows from the three one-error moves followed by a free run of matches.
+
+**Theorem 9 (Landau-Vishkin).** Let Lambda(d, e) = max { i : 0 <= i <= m, 0 <= i + d <= n, D[i][i+d] <= e } (minus infinity if empty). The array L of 2.9 equals Lambda, and the algorithm reports end j exactly when D[m][j] <= k. *Proof.* (i) *Prefix property.* By Lemma 2(c), D is non-decreasing along a diagonal (as i grows). So the rows of diagonal d with D <= e form an initial segment of the valid rows (valid rows start at row 0 for d >= 0 and at row -d, column 0, for d < 0), and Lambda(d, e) is its last row: every earlier row of the diagonal also has D <= e.
+
+(ii) *Base e = 0.* For d >= 0, D[i][i+d] = 0 iff P[0..i) = T[d..d+i) exactly (free start, N matches nothing), so Lambda(d, 0) = slide(d, 0). For d < 0 every cell has D >= -d > 0. (iii) *Step e >= 1, lower bound.* Each candidate is a cell with D <= e: from (i, i+d) with D <= e - 1, a substitution gives (i+1, i+d+1) on diagonal d, a text insertion from diagonal d - 1 gives the same row i on diagonal d, and a pattern deletion from diagonal d + 1 gives row i + 1 on diagonal d, each costing at most 1 by the recurrence (a candidate row beyond m is clamped to m, which is correct because D[m][m+d] <= e by Lemma 2; a candidate whose column would exceed n is discarded).
+
+A match step costs 0, so sliding along equal characters keeps D <= e. Hence the computed value is at most Lambda(d, e). *Upper bound.* Let r = Lambda(d, e). If D[r][r+d] <= e - 1 then r <= Lambda(d, e - 1), and the substitution candidate is at least Lambda(d, e - 1) (clamped to m), so the computed value is at least r. Otherwise D[r][r+d] = e. Walk back along the diagonal while the step into the cell is a zero-cost match, to the first cell (r1, r1+d) of this run of matches; P[i] = T[i+d] for r1 <= i < r.
+
+The value e at (r1, r1+d) was obtained by a non-match step (or r1 is the first valid row of a diagonal d < 0, reached by deletions from diagonal d + 1): by a mismatch from (r1 - 1, r1 + d - 1), whose D is e - 1, so r1 - 1 <= Lambda(d, e - 1); or by a deletion from (r1 - 1, r1 + d) on diagonal d + 1 with D = e - 1, so r1 - 1 <= Lambda(d + 1, e - 1); or by an insertion from (r1, r1 + d - 1) on diagonal d - 1 with D = e - 1, so r1 <= Lambda(d - 1, e - 1). In each case r1 is at most the maximum of the three candidates. Sliding from any start s with r1 <= s <= r reaches at least r over the run of matches, and a start s > r gives a value above r, contradicting the definition of r.
+
+So the computed value is at least r. By induction on e, L = Lambda. (iv) *Reporting.* D[m][m+d] <= k iff Lambda(d, k) = m; the end index is m + d - 1, and the condition m - k <= m + d <= n restricts d to [-k, n - m], inside the range processed (diagonals up to n - m + k are needed because at most k deletions lead from them to a diagonal <= n - m). Each diagonal is reported once.
+
+QED
+*Text-end remark.* Because a cell whose best candidate lies in column n + 1 is stored as minus infinity, the equality L = Lambda is proved above for cells in columns below n; on the last text column (j = n, row < m, which occurs only on diagonals d > n - m) a stored value can be minus infinity although Lambda is finite. This does not change the reported set.
+
+From such a cell (i, n) the only continuation is to delete the remaining pattern characters, one per layer, and the candidate that starts this chain (L[d][e-1] + 1 on the next diagonal) is formed from the previous layer, where the cell was stored when it was first reached: an overflowing candidate means the cell was already stored at an earlier layer, and its successors were generated then. The cells that can be reported (row m, d <= n - m) never overflow, because all their candidates are clamped to row m or lie in a column at most n.
+
+This is an argument, not a full induction; it is backed by the cross-checks, which include texts from 50 bases and k above m (`tests/crosscheck.py`, `tests/test_lv.py`). *Cost.* There are (k + 1) layers and n - m + 2k + 1 diagonals, so O(nk) cells. On one diagonal the slides of successive layers start at or after the previous end, so they advance the row at most m times in total: O(nm) worst case; on random text a slide has expected length below 1/3, so O(nk) expected.
+
+*Proof idea.* A block whose smallest possible value is above k can never again hold a value at most k, so dropping it is safe. The stand-in column of a newly woken block never undercuts a true value.
+
+**Theorem 10 (block pruning).** `myers_pruned` reports j iff D[m][j] <= k. *Proof.* Let lact_j be the largest row with D[i][j] <= k (it is at least min(m, k) because D[i][j] <= i), and let bottom(y) be the last row of block y. *Invariant (A):* after column j, lact_j <= bottom(y) (all cells of blocks above y exceed k). *Invariant (B):* every computed cell value is an upper bound of the true D, and equals D whenever D <= k. (A) holds at column 0 because y starts at the block containing row min(m, k).
+
+For the step, Lemma 2(c) gives lact_{j+1} <= lact_j + 1, so lact_{j+1} can leave the active blocks only when lact_j = bottom(y), i.e. when D[bottom(y)][j] = S[y] <= k, which is exactly the condition that activates block y + 1 before the column is computed. Dropping block y when S[y] >= k + rows(y) is safe: vertical deltas are at least -1, so every cell of the block is at least S[y] - (rows(y) - 1) > k, and by (B) no true value there can be at most k (if a true value were at most k its computed value would be too).
+
+(B) for the newly activated block: its stand-in column has all vertical deltas +1 below the exact bottom of block y, so each stand-in value is S[y] + t, which is at least the true value (vertical bound of Lemma 2(a)); the cell rule of Theorem 7 stays valid because stand-in deltas and the computed horizontal deltas lie in {-1, 0, +1}. A cell with true D[i][j+1] <= k takes its value from a neighbour with true value at most k (diagonal: D[i-1][j] <= k; left: D[i][j] <= k - 1; up: D[i-1][j+1] <= k - 1); by (A) those neighbours lie in active blocks (or in the bottom of block y feeding the first row of an activated block), and by (B) they are computed exactly, so the cell is computed exactly; all other computed values are at least the true values, hence a computed value at most k is exact.
+
+The last block is active exactly when lact_j >= m can hold, so reporting when y = B - 1 and S[y] <= k is equivalent to D[m][j] <= k. QED
 Equality with Sellers is also checked empirically (random and real data, m up to 600, k up to 200, including k above m and above 64).
 
-**Proposition 11 (traceback).** For a read with at least one end position within k, `map` returns an alignment of minimum edit distance (ties: leftmost end), and the CIGAR has exactly that many X, I and D operations.
-*Proof.* By Corollary 5 the set E of ends with distance at most k is exact, so the minimum over E is the global minimum distance (every alignment of cost at most k ends at some e in E); if E is empty no alignment within k exists. An alignment of cost at most k ending at e spans at most m + k text characters (m pattern characters aligned plus at most k insertions), so it starts at or after e + 1 - (m + k), inside the cluster window, and the window DP value at (m, e + 1 - ws) equals D[m][e + 1]. The traceback follows predecessor equalities D[i][j] = D[i-1][j-1] + cost, D[i-1][j] + 1 or D[i][j-1] + 1 down to row 0. Each step contributes exactly the cost it accounts for in D (0 for '=', 1 for X, I, D), so the operations sum to D[m][j], and the walk consumes every read character and the text interval [start, end). QED
-This is also checked on 3,200 random reads (Section 5).
+*Proof idea.* An alignment of minimum distance fits inside a window of known size, and following the predecessor equalities back gives a path whose operation count equals the distance.
+
+**Proposition 11 (traceback).** For a read with at least one end position within k, `map` returns an alignment of minimum edit distance (ties: leftmost end), and the CIGAR has exactly that many X, I and D operations. *Proof.* By Corollary 5 the set E of ends with distance at most k is exact, so the minimum over E is the global minimum distance (every alignment of cost at most k ends at some e in E); if E is empty no alignment within k exists.
+
+An alignment of cost at most k ending at e spans at most m + k text characters (m pattern characters aligned plus at most k insertions), so it starts at or after e + 1 - (m + k), inside the cluster window, and the window DP value at (m, e + 1 - ws) equals D[m][e + 1]. The traceback follows predecessor equalities D[i][j] = D[i-1][j-1] + cost, D[i-1][j] + 1 or D[i][j-1] + 1 down to row 0. Each step contributes exactly the cost it accounts for in D (0 for '=', 1 for X, I, D), so the operations sum to D[m][j], and the walk consumes every read character and the text interval [start, end). QED
+This is also checked on 3,200 random reads (Section 4.17).
+
+*Proof idea.* The same dynamic program over a smaller family of seed lengths.
 
 **Lemma 6' (capped seed lengths).** The fast selection restricts seed lengths to a range [Lmin, Lmax] containing s0 = min(floor(m/(k+1)), 11). The DP of Lemma 6 over this family returns the minimum total hits over all sets of k + 1 disjoint seeds with lengths in the range. The equal split's seeds have length s0 and (k + 1) s0 <= m, so a feasible set exists and the optimum has no more hits than the equal split. Exactness is unaffected because Corollary 5 holds for any k + 1 disjoint seeds. QED
 
+*Proof idea.* Every branch is exact, so the choice between them cannot change the answer.
+
 **Corollary 5' (`filter_auto` is exact).** For every read `filter_auto` runs one of five procedures, each exact (equal-split filter and frequency-aware filter by Corollary 5, the 2-hit and 3-hit filters by Corollary 12', Myers scan by Theorem 7); the cost model only decides which, so the output equals Sellers' for every choice. QED
 
-**Theorem 12 (generalised pigeonhole, s hits in a band).** Let s_0, ..., s_{J-1} be J = k + s pairwise disjoint substrings of P (s >= 1). If ed(P, T[i..j)) <= k then at least s distinct seeds occur exactly in T at positions p with diagonals d = p - a (a the seed's offset in P) that lie within a band of width k, and the whole aligned substring lies inside [dmin - k, dmax + m + k) where dmin, dmax are the smallest and largest of these diagonals.
-*Proof.* Take an alignment with at most k edit operations. Each operation touches at most one seed (Theorem 4), so at most k of the J = k + s seeds are touched and at least J - k = s are untouched. An untouched seed is aligned one-to-one to consecutive text characters, so it occurs exactly at some p with diagonal d = p - a. Between two untouched seeds the diagonal changes only by the net number of insertions minus deletions located between them, which is at most the total number of edits k in absolute value, so all untouched seeds' diagonals lie within a band of width k. As in Theorem 4, for every untouched seed the alignment starts at or after d - k and ends at or before d + m + k; hence it starts at or after max(d) - k >= dmin - k and ends at or before min(d) + m + k <= dmax + m + k. QED
-*Corollary 12' (the s-hit filters are exact).* The two-pointer pass reports a window for every right end whose band (the hits within k of it, counted by distinct seed) holds at least s seeds, with dlo equal to the smallest diagonal in that band and dhi the right end. For the s untouched seeds of an alignment, take as right end the hit with the largest diagonal among them (the last one in sorted order if several share it): the band to its left contains all s of them (their diagonals are within k of it), so a window is emitted whose dlo is at most the smallest of their diagonals and whose dhi is that largest diagonal, which contains the alignment by the theorem (the code clamps windows to [0, n), harmless as in Corollary 5). Windows are substrings of T, so verifying them with Myers reports exactly the end positions within k (soundness as in Corollary 5). Hence `filter_s2`, `filter_s3`, `filter_fs2` and `filter_fs3` return exactly Sellers' end positions, for any choice of J disjoint seeds, and `filter_auto` stays exact whichever option it picks. QED
-*Exhaustive check of the combinatorics.* `tests/test_pigeonhole_brute.py` enumerates every edit script with at most k operations (match, substitution or deletion per pattern character, any number of insertions in each of the m + 1 gaps, including the gaps between pieces and at both ends) against every split of the pattern into k + s contiguous pieces, for m <= 9, k <= 3, s <= 3: 484,805 (split, script) pairs. In all of them at least s pieces are untouched, the untouched pieces' diagonals lie within a band of width k, and the aligned substring lies inside [dmin - k, dmax + m + k); in every setting some script leaves exactly s pieces untouched, so the bound is tight and requiring s + 1 hits (with k + s pieces) would lose real matches. Seeds that are prefixes of pieces are touched only if the piece is, so the check covers them. Result: 0 failures.
+*Proof idea.* k edits spoil at most k of the k + s pieces, so s survive. Survivors lie on diagonals that differ only by the net number of insertions and deletions between them, which is at most k, and that gives both the band and the window.
 
-**Proposition 9' (packed Landau-Vishkin).** The packed extension returns the same row as character-by-character sliding. (a) In the XOR of two windows, the lowest j 2-bit groups are zero iff the first j bases agree, so ctz / 2 is the length of the exact run, continued block by block while all bases of the window agree and clamped by the pattern end and the text end. (b) Packed N is code 0, so a window can wrongly report N equal to A; truncating the run at the first N of the text at or after the start (sorted position list) and at the first N of the pattern (next-N table) restores "N matches nothing". (c) *Blocking:* the value of cell (d, e) depends only on layer e - 1 at d - 1, d, d + 1, so a chunk [x0, x1) of diagonals computed at layer e over [x0 - (k - e), x1 + (k - e)) (clipped to the valid diagonals, with cells outside treated as unreachable) reproduces the unblocked values on [x0, x1) at every layer, by induction on e; each diagonal is reported by the chunk that owns it. (d) The AVX-512 loop evaluates the same expression per lane (29-base windows; lanes whose 29 bases all agree continue with the scalar block loop). QED
+**Theorem 12 (generalised pigeonhole, s hits in a band).** Let s_0, ..., s_{J-1} be J = k + s pairwise disjoint substrings of P (s >= 1). If ed(P, T[i..j)) <= k then at least s distinct seeds occur exactly in T at positions p with diagonals d = p - a (a the seed's offset in P) that lie within a band of width k, and the whole aligned substring lies inside [dmin - k, dmax + m + k) where dmin, dmax are the smallest and largest of these diagonals. *Proof.* Take an alignment with at most k edit operations. Each operation touches at most one seed (Theorem 4), so at most k of the J = k + s seeds are touched and at least J - k = s are untouched.
+
+An untouched seed is aligned one-to-one to consecutive text characters, so it occurs exactly at some p with diagonal d = p - a. Between two untouched seeds the diagonal changes only by the net number of insertions minus deletions located between them, which is at most the total number of edits k in absolute value, so all untouched seeds' diagonals lie within a band of width k. As in Theorem 4, for every untouched seed the alignment starts at or after d - k and ends at or before d + m + k; hence it starts at or after max(d) - k >= dmin - k and ends at or before min(d) + m + k <= dmax + m + k.
+
+QED
+*Corollary 12' (the s-hit filters are exact).* The two-pointer pass reports a window for every right end whose band (the hits within k of it, counted by distinct seed) holds at least s seeds, with dlo equal to the smallest diagonal in that band and dhi the right end.
+
+For the s untouched seeds of an alignment, take as right end the hit with the largest diagonal among them (the last one in sorted order if several share it): the band to its left contains all s of them (their diagonals are within k of it), so a window is emitted whose dlo is at most the smallest of their diagonals and whose dhi is that largest diagonal, which contains the alignment by the theorem (the code clamps windows to [0, n), harmless as in Corollary 5). Windows are substrings of T, so verifying them with Myers reports exactly the end positions within k (soundness as in Corollary 5).
+
+Hence `filter_s2`, `filter_s3`, `filter_fs2` and `filter_fs3` return exactly Sellers' end positions, for any choice of J disjoint seeds, and `filter_auto` stays exact whichever option it picks. QED
+*Exhaustive check of the combinatorics.* `tests/test_pigeonhole_brute.py` enumerates every edit script with at most k operations (match, substitution or deletion per pattern character, any number of insertions in each of the m + 1 gaps, including the gaps between pieces and at both ends) against every split of the pattern into k + s contiguous pieces, for m <= 9, k <= 3, s <= 3: 484,805 (split, script) pairs.
+
+In all of them at least s pieces are untouched, the untouched pieces' diagonals lie within a band of width k, and the aligned substring lies inside [dmin - k, dmax + m + k); in every setting some script leaves exactly s pieces untouched, so the bound is tight and requiring s + 1 hits (with k + s pieces) would lose real matches. Seeds that are prefixes of pieces are touched only if the piece is, so the check covers them. Result: 0 failures.
+
+*Proof idea.* Compare 32 bases at a time by XOR; blocks of diagonals keep every dependency local; N is excluded by truncating the run.
+
+**Proposition 9' (packed Landau-Vishkin).** The packed extension returns the same row as character-by-character sliding. (a) In the XOR of two windows, the lowest j 2-bit groups are zero iff the first j bases agree, so ctz / 2 is the length of the exact run, continued block by block while all bases of the window agree and clamped by the pattern end and the text end.
+
+(b) Packed N is code 0, so a window can wrongly report N equal to A; truncating the run at the first N of the text at or after the start (sorted position list) and at the first N of the pattern (next-N table) restores "N matches nothing". (c) *Blocking:* the value of cell (d, e) depends only on layer e - 1 at d - 1, d, d + 1, so a chunk [x0, x1) of diagonals computed at layer e over [x0 - (k - e), x1 + (k - e)) (clipped to the valid diagonals, with cells outside treated as unreachable) reproduces the unblocked values on [x0, x1) at every layer, by induction on e; each diagonal is reported by the chunk that owns it.
+
+(d) The AVX-512 loop evaluates the same expression per lane (29-base windows; lanes whose 29 bases all agree continue with the scalar block loop). QED
+
+*Proof idea.* With one block the general loop collapses to the register loop.
 
 **Proposition 10' (single-word path).** For m <= 64 there is one block, hin = 0 and y = 0 always, so `advance_block` reduces to the register loop `myers_scan_1` and pruning has nothing to do; correctness is that of Theorem 7. QED
 
+**Tests that back the proofs.** Every exact method (Sellers, banded, Myers, Myers with pruning, Landau-Vishkin, the equal-split, frequency-aware, window-aware, 2-hit and 3-hit filters, and the chooser) returns the same match sets as Sellers in all of these checks: 300 randomised cases (uniform, low-complexity, indel-heavy, clustered, N-containing), run once with the cost-model fallback and once with it disabled; 1,440 comparisons on real data (prefixes of *E. coli* 536 and *B. fragilis*, SARS-CoV-2, phage lambda, human mtDNA, and real homologous mt_orang segments against mt_human); 320 comparisons in a dedicated test of block pruning (m up to 600, k up to 200); 600 comparisons for Landau-Vishkin; 1,120 comparisons on planted matches for the s-hit filters; 484,805 cases in the exhaustive pigeonhole check; every row of the benchmark (the run aborts on any mismatch; the 100-read headline experiments are checked read by read on both bacterial genomes); and the whole divergence experiment.
+
+The BLAST-style heuristics always return a subset of the true matches.
+
+Edlib is checked differently, because it answers a different question: its HW mode returns the minimum distance and only the ends at that minimum. It equals our `myers_best` (minimum-distance ends) in all 1,398 pattern checks. Alignment output was validated separately on 3,200 reads (Section 4.17).
+
 ## 4. Complexity Analysis
 
-n = text length, m = pattern length, k = threshold, w = 64, B = ceil(m/w), L = 11 (seed cap), H = seed hits, V = total verified (merged window) length, sigma = 4. Measured values are from *E. coli* 536 with m = 100 unless stated. A value written as a median with a range is the median and 10th to 90th percentile over 100 reads (the headline experiment); other experiments use means over 20 reads. Absolute times drift on this shared VM: the same Myers scan took 52 ms in an earlier run of the benchmark and about 71 ms in the final run reported here, and the fitted scan constant moved from 5.2 to 7.7 ns accordingly. Ratios between methods are stable; use them rather than absolute times.
+This section gives the cost of each method in theory (the table), derives the expected number of seed hits and the predicted crossover, and then reports what we measured: which method wins where, how cheap seed selection can be made, how much the s-hit filters gain, and how all of it holds up on a genome that was never used for tuning. Times are per read unless stated, and ratios are quoted wherever the machine's noise would make absolute times misleading.
+
+n = text length, m = pattern length, k = threshold, w = 64, B = ceil(m/w), L = 11 (seed cap), H = seed hits, V = total verified (merged window) length, sigma = 4. Measured values are from *E. coli* 536 with m = 100 unless stated. A value written as a median with a range is the median and 10th to 90th percentile over 100 reads (the headline experiment); other experiments use means over 20 reads. Absolute times drift on this shared VM: the same Myers scan took 52 ms in one run of the benchmark and about 71 ms in another, and the fitted scan constant moved from 5.2 to 7.7 ns accordingly. Ratios between methods are stable; use them rather than absolute times.
 
 | Algorithm | Time (worst case) | Space (theory) | Measured time | Measured working memory |
 |---|---|---|---|---|
 | Sellers | Theta(mn) | O(m) | about 0.9 s per pattern (0.83 to 0.94 s), independent of k | negligible |
 | Ukkonen banded | O(kn) expected, O(mn) worst | O(m) | 76 ms at k = 1, 242 ms at k = 10, 593 ms at k = 30; about 2k + 1 cells per text character | negligible |
-| Landau-Vishkin, direct extension (`lv_direct`; phase-2 measurement) | O(nk) expected, O(nm) worst | O(n + k) | 105 ms at k = 1, 488 ms at k = 10, 1,243 ms at k = 30 | 42 MB (2 layers of n + 2k ints, plus flags) |
-| Landau-Vishkin, packed + blocked + AVX-512 (`lv`; phase 3A) | same bounds | n/4 bytes (packed text) + O(k) chunk buffers | 15 ms at k = 1, 41 ms at k = 5, 75 ms at k = 10, 208 ms at k = 30 (Section 4.9) | negligible |
-| Myers | Theta(B n) | O(B sigma) | median 71 ms at m = 100 (B = 2), flat in k; 7.7 ns per block-character; 19 ms for m <= 60 (single-word loop, phase 3A) | negligible |
+| Landau-Vishkin, direct extension (`lv_direct`) | O(nk) expected, O(nm) worst | O(n + k) | 105 ms at k = 1, 488 ms at k = 10, 1,243 ms at k = 30 | 42 MB (2 layers of n + 2k ints, plus flags) |
+| Landau-Vishkin, packed + blocked + AVX-512 (`lv`) | same bounds | n/4 bytes (packed text) + O(k) chunk buffers | 15 ms at k = 1, 41 ms at k = 5, 75 ms at k = 10, 208 ms at k = 30 (Section 4.13) | negligible |
+| Myers | Theta(B n) | O(B sigma) | median 71 ms at m = 100 (B = 2), flat in k; 7.7 ns per block-character; 19 ms for m <= 60 (single-word loop, Section 4.14) | negligible |
 | Myers with block pruning (`myers_pruned`) | O(ceil(k/w) n) expected, Theta(B n) worst | O(B sigma) | 50 to 57 ms for k <= 20 at m = 100, 100 ms at k = 30 | negligible |
 | `filter` (equal split) | build O(n + 4^L); query O(k) lookups + O(H log H) + O(V B) | 4(4^L + 1) + 4n bytes | median 0.007 to 0.040 ms for k <= 8, 0.63 ms at k = 10, then rises to Myers cost | 55 MB (index 37 MB plus build temporaries) |
 | `filter_fa` | as `filter` plus seed selection O(m L^2 + k m L) | same | selection about 0.02 to 0.05 ms per query | 61 MB |
-| `filter_auto` (3A; 3B adds the 2-hit and 3-hit options) | per query the cheapest of `filter`, `filter_fa`, the s-hit filters and a scan by the cost model; adds O(H) occupancy passes and, when the best cost exceeds 2 selection costs, two more seed selections | same index (+ 5.4 MB prefix tables) | 0.95 to 1.00 of the best fixed method from k = 12; 0.4 to 0.77 of it for k <= 10, where a fixed s-hit filter wins by the cost of choosing; 0.99 to 1.00 of the scan at k >= 20 (interleaved timing, Section 4.11) | 61 MB |
-| `filter_s2`, `filter_s3`, `filter_fs2`, `filter_fs3` (3B) | as `filter_fa` with k + s seeds; query O(H log H) to sort the hits, O(H) band pass, O(V B) verification | same index | 1,400x (k = 10, `filter_fs2`) to 5x (k = 17, `filter_fs3`) faster than a Myers scan; at or below the scan from k = 20 (Section 4.11) | 61 MB |
-| `filter_fa_wg` (3B) | as `filter_fa` plus an O(H) gate; window-aware selection only for repeat-heavy reads | same index | equal to `filter_fa` on ordinary reads, up to 15% slower at k = 10 (Section 4.11) | 61 MB |
+| `filter_auto` | per query the cheapest of `filter`, `filter_fa`, the s-hit filters and a scan by the cost model; adds O(H) occupancy passes and, when the best cost exceeds 2 selection costs, two more seed selections | same index (+ 5.4 MB prefix tables) | 0.95 to 1.00 of the best fixed method from k = 12; 0.4 to 0.77 of it for k <= 10, where a fixed s-hit filter wins by the cost of choosing; 0.99 to 1.00 of the scan at k >= 20 (interleaved timing, Section 4.15) | 61 MB |
+| `filter_s2`, `filter_s3`, `filter_fs2`, `filter_fs3` | as `filter_fa` with k + s seeds; query O(H log H) to sort the hits, O(H) band pass, O(V B) verification | same index | 1,400x (k = 10, `filter_fs2`) to 5x (k = 17, `filter_fs3`) faster than a Myers scan; at or below the scan from k = 20 (Section 4.11 and 4.15) | 61 MB |
+| `filter_fa_wg` | as `filter_fa` plus an O(H) gate; window-aware selection only for repeat-heavy reads | same index | equal to `filter_fa` on ordinary reads, up to 15% slower at k = 10 (Section 4.15) | 61 MB |
 | BLAST-style | seed lookups O(m) + sort of hits + extensions + O(V B) | same index | 0.02 to 0.08 ms per query, no accuracy guarantee | 61 MB |
-| `map` (filter + traceback) | filter + O(m (m + k)) per cluster | same index | not benchmarked separately (correctness validated, Section 5) | 61 MB |
+| `map` (filter + traceback) | filter + O(m (m + k)) per cluster | same index | not benchmarked separately (correctness validated, Section 4.17) | 61 MB |
 
 Working memory is peak resident set size minus the steady size after the text is loaded (`scripts/memory.py`; methods whose peak stays under the transient peak of reading the file, about 20 MB, are shown as negligible). Edlib in its Python process also stayed below that level. The Landau-Vishkin worst case with a longest-common-extension structure (suffix array, LCP array, range-minimum queries) would be O(nk); that structure is **not implemented**, so even the packed `lv` has the direct-extension worst case O(nm).
 
-**Landau-Vishkin.** There are n(k + 1) (diagonal, error) cells (3.0e7 per read at k = 5, matching the instrumented count), each updated in O(1) plus a slide that is short on random text. The phase-2 implementation (direct comparison, `lv_direct`) grew linearly in k at about 40 ms per error layer (8 ns per cell), 1.4x slower than banded at k = 1, 2.1x slower at k = 30 and 1.3x to 17x slower than Myers. The packed, blocked implementation of phase 3A (Section 2.9) is 5.2x to 6.0x faster (7.2 ns down to about 1.4 ns per cell at k = 5) and faster than plain Myers for k up to about 8 at m = 100 (Section 4.9).
+**Landau-Vishkin.** There are n(k + 1) (diagonal, error) cells (3.0e7 per read at k = 5, matching the instrumented count), each updated in O(1) plus a slide that is short on random text. The first implementation (direct comparison, `lv_direct`) grew linearly in k at about 40 ms per error layer (8 ns per cell), 1.4x slower than banded at k = 1, 2.1x slower at k = 30 and 1.3x to 17x slower than Myers. The packed, blocked implementation (Section 2.9; results in Section 4.13) is 5.2x to 6.0x faster (7.2 ns down to about 1.4 ns per cell at k = 5) and faster than plain Myers for k up to about 8 at m = 100 (Section 4.13).
 
 **Seed-selection DP.** The count table needs m * L lookups, each of cost O(L) to form the seed code, so O(m L^2); the DP has (k+1) * m states with L transitions each, so O(k m L). For m = 100, k = 10, L = 11 this is about 11,000 transitions, measured at about 0.02 to 0.05 ms.
 
@@ -288,7 +446,9 @@ Setting: a read of length m' is cut into k + 1 pieces of length q = floor(m' / (
 
 *Seed hits for a uniform random seed.* Each text window equals a given uniform random s-mer with probability 4^(-s), so by linearity of expectation a seed has lambda_s hits, whatever the text is. For a uniform random pattern the filter therefore sees E[H] = (k + 1) lambda_s = (k + 1)(n - s + 1) / 4^s hits, exactly, on any text.
 
-*Hits for reads.* A read carries k random edits (each a substitution, insertion or deletion with probability 1/3). Two details matter. (1) *Piece length:* insertions minus deletions change the read length to m' = m + (I - D), so q = floor(m'/(k+1)), and s, differ between reads; a read one base short can have a seed one character shorter, which has 4 times more hits. The formulas below average over the multinomial distribution of (I, D). (2) *Untouched seeds:* an edit touches a given s-character seed with probability about s/m', so a seed is untouched with probability pi = (1 - s/m')^k. An untouched seed is an exact substring of the text, so its expected hits are the size-biased count C_s = (sum over s-mers w of c(w)^2) / N (c(w) = occurrences of w; the seed's own locus is included); a touched seed behaves like a random string, with lambda_s hits. So
+*Hits for reads.* A read carries k random edits (each a substitution, insertion or deletion with probability 1/3). Two details matter. (1) *Piece length:* insertions minus deletions change the read length to m' = m + (I - D), so q = floor(m'/(k+1)), and s, differ between reads; a read one base short can have a seed one character shorter, which has 4 times more hits. The formulas below average over the multinomial distribution of (I, D). (2) *Untouched seeds:* an edit touches a given s-character seed with probability about s/m', so a seed is untouched with probability pi = (1 - s/m')^k.
+
+An untouched seed is an exact substring of the text, so its expected hits are the size-biased count C_s = (sum over s-mers w of c(w)^2) / N (c(w) = occurrences of w; the seed's own locus is included); a touched seed behaves like a random string, with lambda_s hits. So
 
 E[H] = sum over (I, D) of P(I, D) * (k + 1) * [ pi * C_s + (1 - pi) * lambda_s ].
 
@@ -370,7 +530,7 @@ NNLS did not set c_win to 0: the unconstrained least-squares estimate (219 ns) w
 
 The blind figure is the last row: on a genome the model had never seen, the equal-split filter time is predicted within a median factor of 1.11 and the crossover with a Myers scan is predicted at k/m = 0.169 against 0.168 measured. The worst `filter_fa` error (2.36x, at k = 1 to 8 on both real genomes) is the seed-selection term: the model charges c_sel * m * 11, about 0.06 ms, whereas the whole measured query takes 0.03 to 0.08 ms. `results/costmodel_blind.png` shows the three texts.
 
-The fit is sensitive to the calibration range. A first NNLS refit that used only k <= 15 gave c_win = 1,123 ns and c_bp = 2.56 ns (the number of windows and the number of bases verified are collinear, so their split is poorly determined). That model underestimated verification cost near the crossover: on the 100-read headline run at k = 20 only 13 of 100 reads fell back to a scan, and the filter's median was 84 ms against 53 ms for Myers (`results/evidence/`). Earlier unconstrained fits had given c_win = 1,073, 339 and (after clipping a negative estimate) 0; an earlier version of this report said c_win was zero for that reason. The constants also change from run to run with the speed of the VM (a_scan 5.2 ns before, 7.7 ns now), so they must be re-fitted on the machine in use.
+The fit is sensitive to the calibration range. A first NNLS refit that used only k <= 15 gave c_win = 1,123 ns and c_bp = 2.56 ns (the number of windows and the number of bases verified are collinear, so their split is poorly determined). That model underestimated verification cost near the crossover: on the 100-read headline run at k = 20 only 13 of 100 reads fell back to a scan, and the filter's median was 84 ms against 53 ms for Myers (`results/evidence/`). Earlier unconstrained fits had given c_win = 1,073, 339 and (after clipping a negative estimate) 0. The constants also change from run to run with the speed of the VM (a_scan 5.2 ns before, 7.7 ns now), so they must be re-fitted on the machine in use.
 
 ### 4.4 Frequency-aware versus equal split
 
@@ -390,7 +550,9 @@ Pure filter (fallback off), median over 100 reads. `filter_fa` has 1.4 to 9.0 ti
 
 Lemma 6 minimises hits, not verified length, and that is a real limitation. In the `lowcomplex_edge` stress case at k = 10, `filter_fa` has 4.5 times fewer hits than the equal split (2,839 against 12,693) but they fall in 2.9 times more distinct merged windows (1,536 against 531), so it verifies 2.6 times more bases (193,687 against 75,968 per read) and is twice as slow (3.25 against 1.63 ms). The equal split's hits cluster in the same low-complexity region and merge into few windows, while the DP's rarer seeds are scattered.
 
-**Does a window-aware objective help?** `filter_fa_w` (Section 2.11) minimises hits + lambda * windows instead (`scripts/objective_test.py`; exactness checked). On the case above it does what it is meant to do for verification: 5,662 hits, 295 windows and 42,867 verified bases per read (against 193,687 for the hits-only DP and 75,968 for the equal split). But the total time gets worse, from 3.24 ms for `filter_fa` to 8.77 ms, because computing the windows of every candidate seed requires reading its hit list: seed selection alone takes 7.83 ms. Capping the hit lists that are examined at 1,000 (an extra variant tried after seeing the first result) makes selection cheap (0.19 ms) but then the objective stops working (1,515 windows, 191,528 bases, 3.64 ms). Over all 20 settings tested (five stress scenarios at k = 6, 10, 15, and an unmodified *E. coli* sweep with 100 reads), `filter_fa_w` was never more than 5% faster than `filter_fa` and was more than 5% slower in 18 settings; the capped variant was never faster either (slower in 15). So the change does not help in time: the extra information about windows costs more to get than it saves.
+**Does a window-aware objective help?** `filter_fa_w` (Section 2.11) minimises hits + lambda * windows instead (`scripts/objective_test.py`; exactness checked). On the case above it does what it is meant to do for verification: 5,662 hits, 295 windows and 42,867 verified bases per read (against 193,687 for the hits-only DP and 75,968 for the equal split). But the total time gets worse, from 3.24 ms for `filter_fa` to 8.77 ms, because computing the windows of every candidate seed requires reading its hit list: seed selection alone takes 7.83 ms.
+
+Capping the hit lists that are examined at 1,000 (an extra variant tried after seeing the first result) makes selection cheap (0.19 ms) but then the objective stops working (1,515 windows, 191,528 bases, 3.64 ms). Over all 20 settings tested (five stress scenarios at k = 6, 10, 15, and an unmodified *E. coli* sweep with 100 reads), `filter_fa_w` was never more than 5% faster than `filter_fa` and was more than 5% slower in 18 settings; the capped variant was never faster either (slower in 15). So the change does not help in time: the extra information about windows costs more to get than it saves.
 
 ### 4.5 Banded versus Myers: cells updated per second, and instructions
 
@@ -417,7 +579,9 @@ Counting cells computed by the banded algorithm and DP cells represented by Myer
 
 Banded executes 2.3 times (k = 5) and 7.6 times (k = 20) the instructions of Myers per text character, while its measured time is 2.0 times (k = 5, m = 100 length sweep: 147 against 72 ms) and 5.8 times (k = 20: 413 against 71 ms) that of Myers. The time gap goes in the same direction and is of similar size to the instruction gap, although the ratios are not equal (different builds, and instructions per cycle may differ). Per DP cell, banded costs about 19 to 21 instructions and Myers about 1. The simulated predictor reports more mispredictions per character for banded (about 2.0 against 0.6), but real misprediction penalties and cache behaviour were not measured, so branch misses are not established as a cause.
 
-*Hypothesis (not measured).* Why a banded cell costs about 20 instructions while 64 Myers cells share about 50 (a block update, about 49 per block-character in the generic build) is explained here from the code, not from counters: (1) a block update packs 64 cells into a few dozen bitwise operations, while a banded cell needs three additions, two comparisons, a load and a store; (2) the banded column loop has a serial dependency (each cell needs the cell above it) that blocks vectorisation, whereas Myers carries that dependency inside the add of the carry chain; (3) the loop bound `lact` is data dependent and recomputed for every column, while Myers does the same work for every character; (4) for m = 100 the whole Myers state is two words, whereas banded reloads and stores an integer array. These are plausible but unverified. Fewer cells updated does not mean less time unless the per-cell cost is comparable.
+*Hypothesis (not measured).* Why a banded cell costs about 20 instructions while 64 Myers cells share about 50 (a block update, about 49 per block-character in the generic build) is explained here from the code, not from counters: (1) a block update packs 64 cells into a few dozen bitwise operations, while a banded cell needs three additions, two comparisons, a load and a store; (2) the banded column loop has a serial dependency (each cell needs the cell above it) that blocks vectorisation, whereas Myers carries that dependency inside the add of the carry chain; (3) the loop bound `lact` is data dependent and recomputed for every column, while Myers does the same work for every character; (4) for m = 100 the whole Myers state is two words, whereas banded reloads and stores an integer array.
+
+These are plausible but unverified. Fewer cells updated does not mean less time unless the per-cell cost is comparable.
 
 ### 4.6 Block pruning
 
@@ -447,17 +611,41 @@ Measured peak resident set size on *E. coli* 536 (n = 4.94 Mbp), m = 100, k = 10
 | `filter`, `filter_fa`, `filter_fa_w`, `filter_auto`, BLAST-style, `map` | 69.3 | 60.9 | index 37 MB (16.8 MB table + 19.8 MB positions) + 5.4 MB prefix-count tables, plus build temporaries (a 17 MB counter copy, 5 MB flags) |
 | Edlib (Python process) | 39.3 | negligible (below the loading peak) | library |
 
-The text itself takes 8.4 MB after loading (2 bits would suffice; one byte per base is used), and reading the file line by line produces a transient peak of about 20 MB, which is why the scan methods show no working memory above it. The index is the price of the filter: about 61 MB working memory (5.4 MB of it the prefix-count tables added in phase 3A) against a few kilobytes for a scan.
+The text itself takes 8.4 MB after loading (2 bits would suffice; one byte per base is used), and reading the file line by line produces a transient peak of about 20 MB, which is why the scan methods show no working memory above it. The index is the price of the filter: about 61 MB working memory (5.4 MB of it the prefix-count tables used by fast seed selection) against a few kilobytes for a scan.
 
 ### 4.8 Lower-bound context
 
 Backurs and Indyk [7] show that no O(n^(2-epsilon)) algorithm exists for exact edit distance unless the Strong Exponential Time Hypothesis fails, so worst-case speedups beyond banding, bit-parallelism and diagonal transitions are not expected; all gains above come from small k relative to m and low repeat content, which is the regime of read mapping.
 
-### 4.9 Phase 3A: cheaper seed selection, `filter_auto`, packed Landau-Vishkin, single-word Myers
+### 4.9 Which method wins where
 
-The tables in Sections 4.1 to 4.8 come from the phase-2 full run. The measurements in this subsection were made afterwards with targeted quick runs (`scripts/phase3a_filter.py`, `phase3a_lv.py`, `phase3a_myers.py`, `phase3a_noise.py`) on the same VM at a later time; the VM's speed drifts, so compare ratios inside each table, not absolute times across subsections. All tuning (length cap, skip multiplier, cost-model form) used *E. coli* 536, the synthetic genome and the stress text only; *B. fragilis* was not used. Every variant below was checked against Sellers (`tests/crosscheck.py`, `crosscheck_real.py`, `test_lv.py`, `test_pruned.py`, `test_mapping.py`: 0 failures).
+The table below is the headline experiment on *E. coli* 536 with 100 bp reads: median time per query over 100 reads for the scans and the two main filters, and means over 20 reads for the other columns. It shows the basic shape of the results. The scans are flat in k, the filters are orders of magnitude faster at low error, and all of them meet near k/m of 0.17 to 0.20.
 
-**Seed selection.** Mean selection time per query, mean hits of the chosen seeds and total query time (pure filter, 100 reads, best of 3 runs):
+**Table 4.9.** Time per query in ms (medians with 10th to 90th percentile in brackets; Sellers 1 read and WFA2 5 reads).
+
+| k (k/m) | Sellers | Banded | Myers | Edlib (best/read) | WFA2 (best/read) | `filter` | `filter_fa` | one-hit / two-hit heuristic (read recall) |
+|---|---|---|---|---|---|---|---|---|
+| 2 (0.02) | 943 | 94 | 73.0 [67.9, 87.4] | 44 | 92 | **0.017** [0.009, 0.035] | 0.034 [0.031, 0.047] | 0.077 / 0.032 (1.00 / 1.00) |
+| 8 (0.08) | 845 | 208 | 71.0 [67.8, 77.4] | 45 | 254 | **0.040** [0.023, 0.126] | 0.084 [0.067, 0.114] | 0.073 / 0.030 (1.00 / 0.95) |
+| 10 (0.10) | 854 | 242 | 71.3 [67.7, 88.6] | 37 | 313 | 0.631 [0.412, 2.309] | **0.455** [0.271, 0.693] | 0.080 / 0.037 (1.00 / 0.95) |
+| 14 (0.14) | 875 | 314 | 69.3 [66.2, 75.5] | 50 | 453 | 32.4 [22.6, 39.1] | **14.0** [10.5, 20.0] | 0.079 / 0.032 (1.00 / 0.70) |
+| 20 (0.20) | 852 | 413 | 68.9 [66.5, 71.9] | 38 | 564 | 71.3 [69.2, 78.8] | 72.6 [69.3, 77.1] | 0.052 / 0.022 (0.95 / 0.40) |
+| 30 (0.30) | 887 | 593 | 70.3 [66.8, 77.7] | 56 | 766 | 70.9 [68.4, 73.0] | 71.6 [68.2, 82.9] | 0.044 / 0.023 (0.30 / 0.00) |
+
+Four things stand out.
+
+- **The scan.** Myers' bit-vector scan is the best exact scan: about 12 times faster than Sellers and flat in k. Banded DP is slower than Myers from k = 2 although it updates far fewer cells (Section 4.5).
+- **The index.** Up to k/m = 0.08 the filters are 1,800 to 10,000 times faster than a scan, and they pay for the index after about 2 queries (Section 4.2). Their query time is nearly flat in the text length (0.006 ms at 250 kbp to 0.034 ms at 4.9 Mbp for the equal split at k = 5), against linear growth for the scans. The crossover with a scan is at k/m of about 0.17: measured 0.168 for the equal split and 0.187 for the frequency-aware filter, against 0.169 and 0.191 predicted by the cost model.
+- **Frequency-aware seeds.** They lose at k <= 8 with the original selection and win from k = 10 on (Section 4.4); the faster selection of Section 4.10 removes most of that loss.
+- **Libraries.** Edlib is 1.3 to 1.9 times as fast as our unpruned Myers, and WFA2 through Python takes 67 to 766 ms per query. Both answer the best-match question only (Section 2.8).
+
+The same ordering holds on every genome we tried. At k = 5 the times per query for Myers, Edlib, the equal-split filter and the frequency-aware filter are 75.6, 37.4, 0.026 and 0.047 ms on *E. coli* 536, 0.51, 0.27, 0.003 and 0.034 ms on SARS-CoV-2, 0.68, 0.36, 0.004 and 0.034 ms on phage lambda, and 0.24, 0.21, 0.004 and 0.037 ms on human mtDNA. On the small genomes the frequency-aware filter is slower than the equal split, because selection costs more than the tiny verification it saves.
+
+### 4.10 Fast seed selection and the per-query chooser
+
+Choosing seeds by dynamic programming only helps if the choice is cheap. A 100 bp query can take under 0.01 ms, so a 30 microsecond selection step would dominate it. We made selection cheap in two ways, and then let the program decide per read whether to select at all.
+
+**Cheaper selection.** Prefix-count tables (one load per seed count instead of two random loads) and a cap on the seed lengths considered cut the selection time per query. The table gives the mean selection time, the mean hits of the chosen seeds and the total query time (pure filter, 100 reads, best of 3 runs).
 
 | k | original DP (all lengths 1..11, per-seed lookups) | prefix tables, all lengths 1..11 | tables + length cap 3 | tables + length cap 2 (default) | tables + length cap 1 |
 |---|---|---|---|---|---|
@@ -468,9 +656,395 @@ The tables in Sections 4.1 to 4.8 come from the phase-2 full run. The measuremen
 | 12 | 49.3 us, 1760 hits, 2.997 ms | 39.3 us, 1760 hits, 3.511 ms | 19.2 us, 1760 hits, 3.073 ms | 16.2 us, 1760 hits, 3.149 ms | 9.9 us, 1801 hits, 3.100 ms |
 | 15 | 73.6 us, 14685 hits, 22.648 ms | 46.6 us, 14685 hits, 22.928 ms | 27.5 us, 14685 hits, 21.580 ms | 25.6 us, 14685 hits, 22.874 ms | 18.0 us, 14770 hits, 22.658 ms |
 
-Prefix tables alone cut the selection time by 1.3x to 2.0x; the length cap adds a further 1.9x to 2.4x; cap 2 gives 4.1, 4.7 and 6.8 microseconds at k = 1, 4 and 8 (target: under 10) and the same hits as the full-length DP at every k tested. Cap 1 is cheaper still but chose worse seeds at k >= 10 (222 against 215 hits at k = 10, 1,801 against 1,760 at k = 12), so cap 2 is the default. Seed selection is now cheap enough that `filter_fa` beats the equal split even at k = 1 to 8 in these runs (for example 0.0061 against 0.0075 ms at k = 1 and 0.011 against 0.028 ms at k = 6), which reverses the phase-2 finding that it loses there.
+Prefix tables alone cut selection time by 1.3x to 2.0x, and the length cap adds a further 1.9x to 2.4x. The default cap of 2 takes 4.1, 4.7 and 6.8 microseconds at k = 1, 4 and 8, and picks the same hits as the full-length DP at every k tested. Cap 1 is cheaper but chose worse seeds at k >= 10 (222 against 215 hits at k = 10). With this selection the frequency-aware filter beats the equal split even at k = 1 to 8 (0.0061 against 0.0075 ms at k = 1, 0.011 against 0.028 ms at k = 6), which reverses the loss reported in Section 4.4 for the original selection.
 
-**`filter_auto`.** *(Note from the final pass: this table is the phase-3A rule, one non-interleaved run; margins of 0.87 to 1.08 are below the VM noise, so they show only that the rule was not worse than its fixed options. The current rule and its interleaved evaluation are in Section 4.11.)* Mean ms per query, best of 3 runs (100 reads in every setting); `auto/best` is `filter_auto` divided by the smaller mean of `filter` and `filter_fa`. Choices count queries per decision (skip = the DP was not run, a subset of eq):
+**Per-query chooser.** The chooser (`filter_auto`, Section 2.12) prices each option from the hit counts it can read from the index. It prices the options with an occupancy cost model that sees clustered hits as few windows, and adds the 2-hit and 3-hit filters when the best cost found so far is large. Every branch is exact (Corollary 5'). On the low-complexity stress case the occupancy model matters: at k = 10 the chooser takes 1.29 ms against 1.34 for the equal split and 2.25 for the frequency-aware filter, and it picks the equal split for 49 of 100 reads.
+
+The interleaved evaluation of Section 4.15 gives the main numbers. From k = 12 the chooser is within 0.95 to 1.00 of the best fixed method, and from k = 20 it is never slower than the scan (0.99 to 1.00). For k <= 10 it is 0.4 to 0.77 of the best fixed method, which is an s-hit filter, because evaluating the options costs tens of microseconds on queries that take 0.003 to 0.05 ms; it is still 2.4x to 7x faster than the frequency-aware filter there.
+
+*Caveats.* The window prediction for the s-hit options is multiplied by an empirical 2.0 fitted on *E. coli* 536 (the raw prediction was 1.1x to 2.6x low). On the 16.5 kb mitochondrial genome the cost constants, fitted on 4.6 Mb texts, mis-rank the options at k = 20 (0.279 ms against 0.242 for Myers). Absolute times from different runs differ by 40% to 60% on this VM, so we quote interleaved ratios. Older non-interleaved comparisons are in Appendix A.2.
+
+### 4.11 Generalised pigeonhole filters
+
+Short seeds, which we need when k/m is large, hit a genome everywhere by chance. But s chance hits inside one narrow band of diagonals are much rarer than a single chance hit. The generalised filters (Section 2.13, Theorem 12) cut the read into k + s pieces and verify a window only where s distinct pieces hit within k diagonals of each other. We tried s = 2 and s = 3 with equal-split seeds (`filter_s2`, `filter_s3`) and with frequency-aware seeds (`filter_fs2`, `filter_fs3`).
+
+**Table 4.11.** Pure filters (fallback off), mean ms per read with the number of merged candidate windows in brackets (50 reads for *E. coli*, 100 segments for the mitochondrial data).
+
+| text | k | Myers | filter | filter_fa | filter_s2 | filter_s3 | filter_fs2 | filter_fs3 |
+|---|---|---|---|---|---|---|---|---|
+| E. coli 536, m = 100 (10% error) | 10 | 75.678 | 1.238 (493 w) | 0.588 (215 w) | 0.082 (5 w) | 0.274 (1 w) | 0.049 (2 w) | 0.103 (1 w) |
+| E. coli 536, m = 100 (12% error) | 12 | 75.303 | 8.434 (4023 w) | 3.631 (1702 w) | 0.984 (231 w) | 1.439 (27 w) | 0.329 (40 w) | 0.523 (4 w) |
+| E. coli 536, m = 100 (15% error) | 15 | 75.254 | 42.950 (11915 w) | 25.572 (9720 w) | 25.081 (7123 w) | 13.615 (2474 w) | 5.981 (1839 w) | 3.972 (339 w) |
+| E. coli 536, m = 100 (17% error) | 17 | 79.607 | 77.715 (7007 w) | 54.495 (12610 w) | 48.431 (10765 w) | 52.271 (4772 w) | 27.947 (7723 w) | 17.285 (3380 w) |
+| E. coli 536, m = 100 (20% error) | 20 | 78.797 | 114.097 (521 w) | 85.346 (2859 w) | 115.084 (222 w) | 119.190 (2199 w) | 89.646 (6764 w) | 83.850 (9138 w) |
+| E. coli 536, m = 100 (25% error) | 25 | 73.376 | 261.709 (1 w) | 141.522 (2 w) | 302.836 (2 w) | 308.442 (1 w) | 154.237 (3 w) | 180.331 (6 w) |
+| mt_orang vs mt_human, m = 100 | 15 | 0.249 | 0.160 (45 w) | 0.116 (38 w) | 0.176 (40 w) | 0.078 (20 w) | 0.043 (10 w) | 0.030 (4 w) |
+| mt_orang vs mt_human, m = 100 | 20 | 0.246 | 0.360 (1 w) | 0.353 (5 w) | 0.467 (1 w) | 0.486 (3 w) | 0.321 (13 w) | 0.328 (21 w) |
+| mt_orang vs mt_human, m = 100 | 25 | 0.253 | 1.082 (1 w) | 0.573 (1 w) | 0.980 (1 w) | 1.200 (1 w) | 0.495 (1 w) | 0.606 (1 w) |
+| mt_orang vs mt_human, m = 200 | 30 | 0.602 | 0.510 (7 w) | 0.543 (21 w) | 0.362 (20 w) | 0.155 (13 w) | 0.224 (15 w) | 0.147 (6 w) |
+| mt_orang vs mt_human, m = 200 | 40 | 0.492 | 0.750 (1 w) | 0.607 (1 w) | 0.840 (1 w) | 0.813 (1 w) | 0.631 (1 w) | 0.650 (1 w) |
+
+At 10 to 12% error the 2-hit filters verify 2 to 40 windows instead of 215 to 1,700. The 2-hit filter with frequency-aware seeds (`filter_fs2`) is 12x faster than the one-hit frequency-aware filter (`filter_fa`) at k = 10 (0.049 against 0.588 ms) and 11x faster at k = 12.
+
+At 15 to 17% error the 3-hit filter with frequency-aware seeds (`filter_fs3`) wins. At k = 15 it takes 3.97 ms, 6.4x faster than `filter_fa` and 19x faster than Myers. At k = 17 it takes 17.3 ms, 4.6x faster than Myers where `filter_fa` is only 1.5x faster. Frequency-aware seeds beat equal-split seeds in every case here, by 1.5x to 7x.
+
+At 20% error and above the generalised filters stop helping (84 to 94 ms at k = 20 against 79 ms for Myers). The 4-base seeds occur about every 256 bases, so even pairs and triples in a band cover the whole text. The crossover with a scan therefore stays at about k/m of 0.19 to 0.20 for every variant; what changes is how far below it the filter is fast.
+
+On the real human and orangutan segments (median distance 15%), `filter_fs3` takes 0.030 ms at k = 15 against 0.249 for Myers (8.3x), and for 200 bp segments at k = 30 it takes 0.147 ms against 0.602 (4x). At k = 20 (m = 100) and k = 40 (m = 200) there is no gain.
+
+*Checks.* The full table with seed hits, verified bases and candidate-generation time is `results/phase3b_filter_s.md`. All variants equal Sellers in 1,440 comparisons on real data and 1,120 comparisons on 800 planted reads (k up to 25, indel-heavy and clustered edits, repeats and N), and the combinatorics of Theorem 12 is checked exhaustively on 484,805 cases (`tests/test_pigeonhole_brute.py`).
+
+### 4.12 Window-aware seed selection and the repeat gate
+
+Frequency-aware seeds minimise the number of hits, but verification cost depends on how many windows those hits create. A rare seed whose hits are scattered can cost more than a common seed whose hits all sit inside one repeat (Section 4.4 shows a case with 4.5 times fewer hits and twice the time). We tried choosing seeds by their window count (`filter_fa_w`), and then switched that objective on only for reads that look repeat heavy (`filter_fa_wg`).
+
+**The gate.** A read is flagged when the largest hit count among its equal-split seeds is at least 100 and at least 20 times what a random seed of that length would have. The table gives the fraction of reads flagged and the ratio of the largest seed count to its random expectation.
+
+| scenario | k | reads flagged | ratio median | ratio p90 |
+|---|---|---|---|---|
+| E. coli uniform | 6 | 0 of 100 | 5.8 | 10.0 |
+| E. coli uniform | 10 | 0 of 100 | 3.2 | 5.0 |
+| E. coli uniform | 15 | 0 of 100 | 2.4 | 3.1 |
+| stress uniform | 6 | 0 of 100 | 5.8 | 9.2 |
+| stress uniform | 10 | 1 of 100 | 3.4 | 5.5 |
+| stress uniform | 15 | 0 of 100 | 2.5 | 4.6 |
+| stress clustered | 6 | 1 of 100 | 5.8 | 9.2 |
+| stress clustered | 10 | 1 of 100 | 3.4 | 6.3 |
+| stress clustered | 15 | 0 of 100 | 2.4 | 4.2 |
+| stress low-complexity edge | 6 | 97 of 100 | 4843.3 | 5655.8 |
+| stress low-complexity edge | 10 | 94 of 100 | 189.0 | 362.0 |
+| stress low-complexity edge | 15 | 0 of 100 | 5.3 | 6.4 |
+| stress low-complexity inside | 6 | 100 of 100 | 3931.7 | 5655.8 |
+| stress low-complexity inside | 10 | 96 of 100 | 188.2 | 362.0 |
+| stress low-complexity inside | 15 | 0 of 100 | 5.4 | 6.4 |
+
+The gate separates the two kinds of read cleanly. Ordinary reads are almost never flagged (0 of 100 in each *E. coli* sweep) and low-complexity reads almost always are (94 to 100 of 100 at k = 6 and 10). On *B. fragilis*, with the thresholds frozen, it flagged none of 200 reads at any k:
+
+| k | reads flagged | ratio median | ratio p90 | ratio max |
+|---|---|---|---|---|
+| 6 | 0 of 200 | 5.0 | 9.2 | 32.5 |
+| 10 | 0 of 200 | 3.3 | 5.4 | 13.0 |
+| 15 | 0 of 200 | 2.7 | 3.9 | 4.5 |
+
+**Before and after.** The next table compares pure filters (mean ms per read, best of 3; seed-selection time in brackets). The columns `sort estimate` and `binned estimate` show the window objective before and after we replaced the sorted window count by a binned one.
+
+| scenario | k | filter (equal split) | filter_fa (hits) | filter_fa_w, sort estimate | filter_fa_w, binned estimate | filter_fa_wg (gated, binned) | filter_fa_wg (gated, sort estimate) | filter_auto |
+|---|---|---|---|---|---|---|---|---|
+| stress low-complexity edge | 6 | 0.477 (0.000) | 0.042 (0.005) | 11.558 (11.520) | 0.680 (0.646) | 0.700 (0.664) | 11.349 (11.310) | 0.042 (0.005) |
+| stress low-complexity edge | 10 | 1.503 (0.000) | 2.603 (0.015) | 9.560 (8.643) | 1.495 (0.549) | 1.517 (0.547) | 9.634 (8.680) | 1.435 (0.014) |
+| stress low-complexity edge | 15 | 34.572 (0.000) | 25.893 (0.025) | 33.373 (4.513) | 29.097 (0.361) | 28.239 (0.027) | 27.246 (0.026) | 25.000 (0.023) |
+| stress low-complexity inside | 6 | 0.771 (0.000) | 0.569 (0.006) | 24.582 (23.953) | 1.832 (1.288) | 1.904 (1.335) | 23.506 (22.909) | 0.717 (0.007) |
+| stress low-complexity inside | 10 | 1.889 (0.000) | 1.580 (0.011) | 17.498 (16.085) | 2.288 (0.937) | 2.264 (0.911) | 16.611 (15.272) | 1.482 (0.010) |
+| stress low-complexity inside | 15 | 26.560 (0.000) | 20.691 (0.020) | 36.679 (10.218) | 25.715 (0.627) | 19.285 (0.018) | 19.476 (0.018) | 20.019 (0.018) |
+| E. coli uniform | 6 | 0.033 (0.000) | 0.013 (0.006) | 0.132 (0.124) | 0.053 (0.046) | 0.013 (0.006) | 0.014 (0.006) | 0.012 (0.005) |
+| E. coli uniform | 10 | 0.928 (0.000) | 0.425 (0.012) | 0.725 (0.182) | 0.500 (0.071) | 0.428 (0.013) | 0.427 (0.013) | 0.437 (0.014) |
+| E. coli uniform | 15 | 39.063 (0.000) | 24.400 (0.026) | 25.075 (0.191) | 24.650 (0.119) | 25.045 (0.027) | 25.397 (0.027) | 25.329 (0.026) |
+| stress clustered | 6 | 0.046 (0.000) | 0.023 (0.006) | 0.365 (0.348) | 0.080 (0.064) | 0.037 (0.020) | 0.235 (0.218) | 0.024 (0.007) |
+| stress clustered | 10 | 1.108 (0.000) | 0.510 (0.013) | 1.251 (0.740) | 0.634 (0.105) | 0.534 (0.039) | 1.054 (0.559) | 0.536 (0.014) |
+| stress clustered | 15 | 38.551 (0.000) | 25.297 (0.028) | 26.564 (0.852) | 26.613 (0.167) | 25.637 (0.026) | 26.377 (0.029) | 26.775 (0.027) |
+
+Ungated, the window objective costs 18% (binned) to 70% (sorted) more than `filter_fa` on *E. coli* at k = 10 (0.500 and 0.725 against 0.425 ms); gated, it costs the same (0.428 ms). The binned estimate is the larger improvement: selection falls from 8.6 to 0.55 ms on the low-complexity edge case at k = 10.
+
+The objective helps only one of the stress cases that originally failed: low-complexity edge at k = 10 (1.52 ms gated, against 2.60 for `filter_fa` and 9.6 before). It still hurts at edge k = 6 (0.70 against 0.042 ms) and on both inside cases (k = 6: 1.90 against 0.57; k = 10: 2.26 against 1.58). The per-query chooser is at or near the best in every one of these rows (0.042, 1.44, 0.72, 1.48 ms), so the window objective is not part of it. We keep it as a documented option: it is exact and safe, but not needed.
+
+### 4.13 Faster Landau-Vishkin
+
+Landau-Vishkin updates one number per diagonal and error count, and most of its time goes into comparing characters one at a time. We changed that. The text is packed 2 bits per base, 32 bases are compared by one XOR followed by a count of trailing zeros, diagonals are processed in cache-sized blocks, and an AVX-512 loop evaluates 8 cells at once. The recurrence is unchanged, so the answers are too (Proposition 9').
+
+**Table 4.13.** *E. coli* 536, m = 100, 5 reads, best of 3 runs, ms per read.
+
+| k | first LV | lv_direct (control) | lv_stream | lv scalar blocked | lv AVX-512 (default) | speedup of default vs first | Myers |
+|---|---|---|---|---|---|---|---|
+| 1 | 92.8 | 90.3 | 53.5 | 40.9 | 15.5 | 5.97x | 61.2 |
+| 5 | 212.3 | 214.4 | 148.4 | 121.6 | 40.5 | 5.24x | 61.5 |
+| 10 | 426.8 | 425.8 | 270.6 | 237.5 | 75.4 | 5.66x | 67.2 |
+| 30 | 1189.8 | 1175.7 | 699.3 | 706.4 | 207.9 | 5.72x | 69.4 |
+
+The AVX-512 loop gives the large step: 5.2x to 6.0x faster than the first version at every k tested, with identical output. The packed extension alone (`lv_stream`) gives about 1.5x. On a CPU without AVX-512 the scalar blocked loop is still 1.7x to 2.3x faster than the first version. At m = 100 the new `lv` is faster than plain Myers for k up to about 8, faster than pruned Myers up to about 6, and faster than Edlib (best match only) up to about 3 to 4; beyond that its growth in k wins out.
+
+*Caveat.* These ratios depend on AVX-512 (Section 4.15). The longest-common-extension structure that gives the O(nk) worst case is not implemented.
+
+### 4.14 Myers for reads of at most 64 bases
+
+When a read fits in one 64-bit word the block machinery is pure overhead. A register-only loop (Section 2.10, Proposition 10') removes the vector set-up and carry bookkeeping.
+
+**Table 4.14.** *E. coli* 536, 10 reads, best of 5 runs, ms per read. Rows with m <= 60 are one block for every read.
+
+| m (blocks) | k | Myers before | Myers after | pruned before | pruned after | pruned after / Myers after | pruned after vs before | Edlib (best/read) |
+|---|---|---|---|---|---|---|---|---|
+| 20 (1) | 2 | 39.6 | 19.3 | 46.3 | 18.6 | 0.96 | 2.49x | 43.8 |
+| 32 (1) | 5 | 38.9 | 19.0 | 48.6 | 19.4 | 1.02 | 2.50x | 34.4 |
+| 50 (1) | 2 | 39.7 | 19.4 | 48.5 | 19.6 | 1.01 | 2.47x | 34.6 |
+| 50 (1) | 5 | 37.6 | 18.7 | 50.2 | 18.9 | 1.02 | 2.65x | 35.4 |
+| 50 (1) | 10 | 40.8 | 19.6 | 48.8 | 19.0 | 0.97 | 2.58x | 33.2 |
+| 56 (1) | 5 | 39.0 | 19.2 | 45.8 | 18.7 | 0.98 | 2.44x | 34.7 |
+| 60 (1) | 2 | 37.7 | 18.7 | 49.2 | 18.8 | 1.00 | 2.62x | 35.9 |
+| 100 (2) | 5 | 66.1 | 68.8 | 46.9 | 46.4 | 0.67 | 1.01x | 34.8 |
+| 100 (2) | 20 | 67.9 | 75.0 | 46.9 | 48.6 | 0.65 | 0.96x | 36.2 |
+
+At one block the scan is about 2.0x faster than before (39 to 19 ms) and 1.7x to 2.3x faster than Edlib at m <= 60. Pruned and plain Myers now run the same loop, so they take 0.96 to 1.02 times each other's time. For two or more blocks nothing changed (the m = 100 rows).
+
+### 4.15 Blind evaluation and interleaved timing
+
+Our cost-model constants were fitted on a synthetic genome and our other parameters tuned on *E. coli* 536. To test whether they transfer, we froze every parameter and ran all methods on *B. fragilis*, a genome never used for tuning. All numbers in this subsection come from one run per setting in which every method is timed on every read.
+
+**Method.** Every method runs on every read inside one process, in an order that rotates per read and per repeat. The seed index is built once before timing, so index build and process startup are excluded from all times (they are a one-time cost, Section 4.2). Each setting has 60 reads and 3 repeats, 180 timed reads per cell. A cell is the speedup over a Myers scan on the same read and repeat (time of Myers divided by time of the method), with the median and the 10th to 90th percentile in brackets; above 1 means faster than the scan. All nine methods returned identical end positions on every read. The fallback is active and all parameters are frozen.
+
+**Hardware.** Every number in this report comes from one Intel Xeon at 2.10 GHz (a virtual machine) with AVX-512, built with `-march=native`; the Landau-Vishkin loop used AVX-512 (`APPROX_LVSIMD=0` gives the scalar path of Section 4.13). The `lv` ratios below depend on that: without AVX-512 the code falls back to the slower scalar loop and `lv` loses most of its edge at k = 4 to 8. Myers, the filters and the chooser use no AVX-512. Nothing was re-measured on another machine or mixed in, and the VM adds tens of percent of noise to absolute times, which is why we quote ratios.
+
+**Table 4.15a. *E. coli* 536 (the text the parameters were tuned on)**
+
+| m, k | lv | filter_fa | filter_fa_wg | filter_s2 | filter_s3 | filter_fs2 | filter_fs3 | filter_auto |
+|---|---|---|---|---|---|---|---|---|
+| m=100, k=1 | 4.77 (4.19 to 5.08) | 3255.87 (2731.87 to 3913.64) | 14528.17 (3393.35 to 17415.52) | 18739.68 (14053.15 to 23584.50) | 28183.59 (17484.64 to 33262.26) | 14982.14 (4831.52 to 16945.92) | 15299.17 (5593.87 to 17269.58) | 14912.26 (6632.59 to 18412.06) |
+| m=100, k=2 | 3.29 (2.91 to 3.48) | 3119.89 (2589.67 to 3558.50) | 13157.36 (3217.36 to 15120.04) | 17476.10 (13050.25 to 21811.27) | 23533.13 (15144.53 to 30060.69) | 13612.66 (4833.26 to 16064.11) | 14134.54 (5296.19 to 16236.28) | 13006.41 (6180.63 to 15811.20) |
+| m=100, k=4 | 1.97 (1.68 to 2.11) | 2884.35 (2324.68 to 3334.61) | 9957.87 (3054.57 to 11613.91) | 16785.53 (13211.45 to 20915.73) | 21289.77 (14466.09 to 27001.20) | 12234.35 (4642.25 to 14124.55) | 12796.68 (5027.48 to 14592.29) | 10566.01 (5520.52 to 13097.95) |
+| m=100, k=6 | 1.44 (1.31 to 1.52) | 2442.39 (1884.90 to 2913.52) | 7408.80 (2640.53 to 10036.40) | 14722.60 (11283.06 to 18989.73) | 17680.79 (9856.09 to 24040.10) | 10873.16 (4275.90 to 12588.83) | 10315.45 (4851.62 to 12034.67) | 7900.01 (3517.72 to 10995.95) |
+| m=100, k=8 | 1.12 (1.03 to 1.18) | 1357.61 (946.17 to 1825.37) | 2601.81 (1282.71 to 4199.39) | 5524.92 (3229.52 to 9869.63) | 3102.63 (1025.97 to 4664.66) | 3960.20 (2906.60 to 5132.30) | 2931.10 (2153.23 to 3581.63) | 3293.55 (1781.88 to 4001.68) |
+| m=100, k=10 | 0.92 (0.85 to 0.97) | 156.53 (95.65 to 230.47) | 178.29 (105.35 to 284.91) | 918.80 (616.46 to 1277.74) | 237.62 (188.03 to 305.33) | 1414.22 (984.85 to 2001.90) | 653.38 (433.78 to 940.17) | 1100.00 (768.10 to 1461.80) |
+| m=100, k=12 | 0.78 (0.72 to 0.82) | 19.83 (14.24 to 32.48) | 20.96 (14.91 to 34.83) | 141.68 (26.26 to 193.68) | 46.77 (37.39 to 58.33) | 214.90 (129.70 to 393.63) | 134.44 (90.47 to 204.84) | 205.94 (127.37 to 355.98) |
+| m=100, k=15 | 0.64 (0.56 to 0.68) | 2.87 (2.13 to 3.92) | 2.89 (2.08 to 4.03) | 2.12 (1.73 to 16.10) | 5.61 (4.46 to 6.79) | 13.28 (7.12 to 23.89) | 19.49 (11.26 to 30.04) | 18.99 (11.16 to 29.33) |
+| m=100, k=17 | 0.58 (0.52 to 0.63) | 1.37 (1.15 to 1.73) | 1.35 (1.14 to 1.75) | 1.60 (1.32 to 2.03) | 3.42 (0.64 to 4.65) | 2.96 (1.84 to 4.98) | 5.03 (2.54 to 8.14) | 5.08 (2.54 to 8.69) |
+| m=100, k=20 | 0.49 (0.42 to 0.51) | 1.00 (0.93 to 1.06) | 1.00 (0.90 to 1.05) | 0.64 (0.57 to 0.68) | 0.62 (0.56 to 0.68) | 0.82 (0.74 to 1.05) | 0.93 (0.69 to 1.22) | 0.99 (0.93 to 1.15) |
+| m=100, k=25 | 0.40 (0.36 to 0.42) | 1.00 (0.91 to 1.07) | 1.00 (0.95 to 1.07) | 1.00 (0.86 to 1.07) | 1.00 (0.89 to 1.07) | 0.48 (0.38 to 0.57) | 0.43 (0.35 to 0.59) | 1.00 (0.95 to 1.04) |
+| m=200, k=30 | 0.64 (0.59 to 0.73) | 1.51 (1.28 to 1.89) | 1.52 (1.25 to 1.84) | 2.31 (1.98 to 2.94) | 8.57 (1.07 to 12.15) | 4.67 (2.99 to 8.33) | 16.24 (8.86 to 33.47) | 16.12 (8.93 to 32.72) |
+| m=200, k=40 | 0.50 (0.43 to 0.53) | 1.00 (0.94 to 1.07) | 1.00 (0.94 to 1.07) | 0.63 (0.57 to 0.69) | 0.62 (0.56 to 0.68) | 0.84 (0.75 to 0.91) | 0.81 (0.72 to 0.88) | 0.99 (0.95 to 1.03) |
+
+Median absolute time of the Myers scan (ms per read, for scale only): m=100,k=1: 73.3, m=100,k=2: 73.1, m=100,k=4: 73.8, m=100,k=6: 73.0, m=100,k=8: 72.5, m=100,k=10: 72.6, m=100,k=12: 72.4, m=100,k=15: 73.1, m=100,k=17: 74.2, m=100,k=20: 72.6, m=100,k=25: 72.8, m=200,k=30: 143.2, m=200,k=40: 142.0.
+
+**Table 4.15b. *B. fragilis* (blind)**
+
+| m, k | lv | filter_fa | filter_fa_wg | filter_s2 | filter_s3 | filter_fs2 | filter_fs3 | filter_auto |
+|---|---|---|---|---|---|---|---|---|
+| m=100, k=1 | 3.87 (3.63 to 4.06) | 3425.61 (2935.45 to 4058.76) | 15632.46 (3582.99 to 18090.93) | 18940.79 (14951.73 to 25672.48) | 29792.62 (17062.28 to 35255.43) | 15676.60 (5418.81 to 17720.12) | 15964.03 (5901.28 to 17771.80) | 15671.21 (8833.19 to 18752.85) |
+| m=100, k=2 | 3.22 (2.60 to 3.45) | 3255.75 (2696.44 to 3674.40) | 13004.10 (3160.73 to 15592.98) | 19405.79 (14935.31 to 23564.15) | 25628.76 (16758.20 to 31823.11) | 14300.31 (5151.08 to 16721.79) | 14616.97 (5660.86 to 16523.94) | 13739.15 (6275.14 to 15591.22) |
+| m=100, k=4 | 1.97 (1.79 to 2.09) | 2899.00 (2311.77 to 3260.95) | 10824.71 (2982.79 to 12603.41) | 16614.29 (12440.47 to 20445.19) | 21994.04 (15082.92 to 27504.10) | 12838.53 (4763.17 to 14247.15) | 13281.28 (5000.58 to 14874.62) | 11647.98 (6324.37 to 13190.82) |
+| m=100, k=6 | 1.41 (1.25 to 1.52) | 2471.41 (1907.23 to 2886.14) | 7385.06 (2626.91 to 9054.73) | 15839.46 (11924.67 to 19780.47) | 19409.78 (10133.08 to 24268.84) | 10320.82 (4568.66 to 12989.20) | 10216.91 (4778.08 to 12671.51) | 7637.50 (3882.82 to 10310.60) |
+| m=100, k=8 | 1.15 (0.98 to 1.21) | 1277.82 (793.04 to 1767.88) | 2357.87 (1080.42 to 4180.39) | 6559.13 (3203.73 to 10742.40) | 3593.68 (1082.40 to 5404.12) | 3899.73 (2680.48 to 5331.92) | 2988.32 (1893.22 to 3894.99) | 3308.86 (1906.36 to 4035.70) |
+| m=100, k=10 | 0.91 (0.79 to 0.98) | 146.16 (90.34 to 258.03) | 167.01 (100.89 to 307.66) | 914.59 (517.18 to 1186.30) | 241.57 (184.13 to 387.71) | 1386.02 (842.01 to 2027.31) | 645.66 (389.99 to 1019.85) | 1030.38 (638.76 to 1582.23) |
+| m=100, k=12 | 0.77 (0.68 to 0.83) | 20.78 (13.86 to 30.50) | 22.26 (14.51 to 31.97) | 147.26 (27.74 to 203.79) | 49.72 (36.18 to 65.00) | 224.62 (139.39 to 326.53) | 134.35 (90.38 to 196.87) | 207.80 (127.31 to 308.27) |
+| m=100, k=15 | 0.63 (0.58 to 0.67) | 2.74 (2.17 to 4.12) | 2.72 (2.15 to 4.18) | 2.13 (1.61 to 14.05) | 5.32 (3.72 to 6.66) | 11.12 (7.64 to 21.62) | 17.30 (11.93 to 32.01) | 17.17 (12.16 to 29.14) |
+| m=100, k=17 | 0.57 (0.51 to 0.61) | 1.31 (1.07 to 1.60) | 1.33 (1.08 to 1.61) | 1.59 (1.24 to 2.07) | 2.67 (0.63 to 4.64) | 2.65 (1.72 to 4.32) | 4.26 (2.49 to 7.72) | 4.20 (2.44 to 7.71) |
+| m=100, k=20 | 0.47 (0.41 to 0.51) | 1.00 (0.90 to 1.12) | 1.00 (0.90 to 1.11) | 0.63 (0.57 to 0.72) | 0.62 (0.55 to 0.70) | 0.79 (0.69 to 1.01) | 0.75 (0.63 to 1.16) | 0.99 (0.94 to 1.16) |
+| m=100, k=25 | 0.39 (0.34 to 0.43) | 1.00 (0.89 to 1.13) | 1.00 (0.92 to 1.14) | 1.00 (0.87 to 1.12) | 1.00 (0.87 to 1.13) | 0.46 (0.38 to 0.54) | 0.41 (0.34 to 0.50) | 1.00 (0.94 to 1.06) |
+| m=200, k=30 | 0.65 (0.54 to 0.71) | 1.45 (1.23 to 1.78) | 1.44 (1.22 to 1.74) | 2.26 (1.79 to 2.77) | 8.49 (1.00 to 13.63) | 4.62 (2.69 to 6.23) | 15.18 (7.31 to 23.77) | 15.07 (7.47 to 22.16) |
+| m=200, k=40 | 0.49 (0.40 to 0.54) | 1.00 (0.90 to 1.14) | 1.00 (0.88 to 1.15) | 0.63 (0.55 to 0.81) | 0.62 (0.54 to 0.71) | 0.84 (0.72 to 0.97) | 0.81 (0.72 to 0.93) | 0.99 (0.91 to 1.07) |
+
+Median absolute time of the Myers scan (ms per read, for scale only): m=100,k=1: 76.0, m=100,k=2: 76.7, m=100,k=4: 75.3, m=100,k=6: 76.0, m=100,k=8: 76.1, m=100,k=10: 77.3, m=100,k=12: 75.9, m=100,k=15: 76.3, m=100,k=17: 75.8, m=100,k=20: 76.6, m=100,k=25: 76.0, m=200,k=30: 149.8, m=200,k=40: 150.0.
+
+**What the tables show.** The ranking and the crossovers are the same on both genomes, and the numbers agree within about 15% except in the highest-variance cells (the 10th percentile of the 3-hit filters at k = 8 to 17 differs by up to 2x between the genomes). Examples: the 2-hit filter `filter_fs2` at k = 10 is 1,414x faster than Myers on *E. coli* and 1,386x on *B. fragilis*; the 3-hit filter `filter_fs3` at k = 15 is 19.5x and 17.3x, and at k = 17 it is 5.03x and 4.26x. At k = 20 every filter is at or below the scan on both genomes (0.4x to 1.0x).
+
+**The chooser.** `filter_auto` is 0.40 to 1.00 of the best fixed method on *B. fragilis* (0.44 to 1.00 on *E. coli*): 0.4 to 0.55 for k <= 8, 0.76 to 0.77 at k = 10, and 0.95 or better from k = 12. It is never slower than the scan from k = 20 (0.99 to 1.00).
+
+**Landau-Vishkin.** It beats the Myers scan only at small k (4.8x at k = 1 on *E. coli* and 3.9x on *B. fragilis*, 2.0x at k = 4, 1.1x to 1.2x at k = 8; 0.9x at k = 10), and it is thousands of times slower than any filter at those k, because it still scans the whole text.
+
+**The gate.** `filter_fa_wg` behaves like `filter_fa` on this natural genome: 2.72 against 2.75 at k = 15 and 1.33 against 1.31 at k = 17, but 167 against 146 at k = 10, where the binned window estimate still costs about 15%.
+
+### 4.16 Real homologous sequences (human against orangutan mtDNA)
+
+Simulated edits are uniform and independent; real evolutionary differences are not. To check that our conclusions survive that, we matched 100 bp segments of the orangutan mitochondrial genome against the human one (200 segments), and the reverse, where the edits are real.
+
+The experiment is `scripts/real_divergence.py`. The true best edit distance (Myers, verified with Sellers for every segment: a match at k = d and none at k = d - 1) has a median of 15 (15% of m) and a 10th to 90th percentile range of 8 to 22 (8% to 22%) from orangutan to human (range 1 to 39, no exact match), and 8 to 24 in the other direction (range 0 to 40, one exact match). For 200 bp segments the median is 29 (14.5% of m, 10th to 90th percentile 20 to 41).
+
+| k (m = 100) | segments with d* <= k (o->h / h->o) | filter hits per segment (equal / fa) | one-hit read recall (o->h / h->o) | two-hit read recall (o->h / h->o) |
+|---|---|---|---|---|
+| 10 | 39 / 43 | 5 / 2 | 1.00 / 1.00 | 1.00 / 1.00 |
+| 15 | 110 / 111 | 135 / 73 | 1.00 / 1.00 | 0.96 / 0.99 |
+| 20 | 177 / 163 | 2,082 / 680 | 0.99 / 1.00 | 0.85 / 0.86 |
+| 30 | 195 / 188 | 10,743 / 7,682 | 0.98 / 0.99 | 0.80 / 0.78 |
+| 40 | 200 / 200 | 51,031 / 28,845 | 0.96 / 0.95 | 0.79 / 0.73 |
+
+(Recall is over the segments that have a true match within k. End-position recall at k = 40 is 0.77 for one-hit and 0.65 / 0.63 for two-hit.) The real divergence sits right at the filters' crossover: at the median distance (k = 15) a 100 bp segment already produces 135 seed hits on a 16.5 kbp text and the filter is only 1.5x faster than Myers (0.154 against 0.233 ms), and from k = 20 on the cost model sends every segment to a full scan. The simulated-edit results carry over: one-hit seeding keeps recall of at least 0.95 up to k = 40, while the two-hit trigger loses 20% to 27% of the segments once k reaches 30 to 40.
+
+For 200 bp segments (median distance 29) both heuristics keep recall of at least 0.99 at every k tested up to 40, because longer segments have longer clean stretches to seed on. All exact methods agree with Sellers on every segment and k.
+
+**Heuristic recall under stress** (*E. coli* 536 with about 1% injected microsatellite and homopolymer arrays, 20 reads per cell, so recall moves in steps of 0.05; read recall is the fraction of reads for which at least one true match is reported):
+
+| scenario | k = 6 one-hit / two-hit | k = 10 one-hit / two-hit | k = 15 one-hit / two-hit |
+|---|---|---|---|
+| uniform | 1.00 / 1.00 | 1.00 / 0.95 | 1.00 / 0.45 |
+| clustered | 1.00 / 1.00 | 1.00 / 1.00 | 1.00 / 1.00 |
+| indel-heavy (90% indels) | 1.00 / 1.00 | 1.00 / 0.90 | 0.95 / 0.60 |
+| low-complexity edge | 1.00 / 1.00 | 1.00 / 0.95 | 1.00 / 0.65 |
+| low-complexity inside | 1.00 / 1.00 | 1.00 / 0.95 | 1.00 / 0.75 |
+
+Clustered edits are the easiest case for a seed-based method, because they leave long clean stretches. The one-hit heuristic loses reads only under indel-heavy edits at k = 15 (0.95), and loses end positions inside low-complexity arrays (end recall 0.91 at k = 15, where one read can have thousands of matches). The two-hit trigger is much more fragile: recall falls to 0.45 to 0.75 at k = 15 in every scenario except clustered. Exact methods lose nothing in any scenario, and the filters get slower where hits pile up in repeats (`lowcomplex_inside`: 17,000 to 18,000 equal-split hits per read at k = 6 and 10).
+
+At the highest error rates the heuristic also collapses on uniform reads (k = 30: one-hit 0.30, two-hit 0.00). The heuristic's speed (0.02 to 0.08 ms) is similar to the filters' where the filters work, and it does not degrade at high error, which is exactly where its recall fails.
+
+*Caveat.* This is one pair of 16.5 kb genomes, forward strand only, with 100 and 200 bp segments; the 3-hit filter results for the same data are in Section 4.11.
+
+### 4.17 Read mapping with alignment output
+
+The exact filter finds every end position within k. Taking the best of them and tracing back through the table turns a match into an alignment, which is what a read mapper has to report. This subsection shows the tool and how we validated it.
+
+The exact filter finds every end position with distance at most k; a traceback over the verified windows (Section 2.14) turns the best of them into an alignment. `scripts/map_reads GENOME READS -k K` maps a FASTA, FASTQ or one-per-line reads file against a genome and writes one best alignment per read (minimum edit distance, ties broken by the leftmost end) as TSV or SAM-like text; reads with no alignment within k are reported as unmapped; only the forward strand is searched.
+
+It was validated on 3,200 random reads (320 texts of 200 to 20,000 bp, some with N; k from 0 to 12; uniform, indel-heavy and clustered edits; 2,298 mapped and 902 unmapped) with 0 failures: the reported distance equals the Sellers minimum (Sellers at k = d matches and at k = d - 1 does not), the CIGAR edit count (X + I + D) equals the reported distance, the CIGAR replays correctly against the read and the text, and the end is one of Sellers' end positions.
+
+A 60 bp stretch of E. coli 536 (positions 2000000..2000060) was copied and given 2 substitutions, 1 insertion and 1 deletion (4 edits), then mapped with k = 8:
+
+```
+scripts/map_reads data/raw/ecoli536.fa reads.fa -k 8
+```
+TSV output:
+```
+read	length	status	distance	start	end	strand	cigar	best_ends
+example_read	60	mapped	4	2000000	2000060	+	10=1X15=1I14=1D12=1X6=	10
+unmappable_read	60	unmapped	*	*	*	*	*	0
+```
+Alignment reconstructed from the CIGAR (reference on top, read below; `x` mismatch, `-` gap):
+```
+ATATGGCAAAAGCGCTCAGGGCGGGA-TCATCAACATCGTCACCCAGCAGCCGGACAGCAC
+||||||||||x||||||||||||||| |||||||||||||| ||||||||||||x||||||
+ATATGGCAAACGCGCTCAGGGCGGGAGTCATCAACATCGTC-CCCAGCAGCCGGTCAGCAC
+```
+The reported distance is 4, equal to the number of X, I and D operations in `10=1X15=1I14=1D12=1X6=`, and the start (2000000) matches the planted position (2000000). The second read has no alignment within k = 8 and is reported as unmapped. SAM-like output (`--format sam`):
+```
+@HD	VN:1.6	SO:unsorted
+@SQ	SN:gi|110640213|ref|NC_008253.1|	LN:4938920
+@PG	ID:map_reads	PN:map_reads
+example_read	0	gi|110640213|ref|NC_008253.1|	2000001	255	10=1X15=1I14=1D12=1X6=	*	0	0	ATATGGCAAACGCGCTCAGGGCGGGAGTCATCAACATCGTCCCCAGCAGCCGGTCAGCAC	*	NM:i:4
+unmappable_read	4	*	0	0	*	*	0	0	ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT	*
+```
+
+## 5. Conclusion
+
+We built, proved and measured several ways to solve the k-differences problem on DNA. This section collects what we found, gives a decision table for choosing a method, and states the scope of the results.
+
+### 5.1 What we found
+
+1. **All exact methods agree.** Every exact method returns exactly the same end positions as Sellers' recurrence in every check (random cases, real genomes, planted matches, 3,200 alignment checks and an exhaustive combinatorial test), with 0 failures. The BLAST-style heuristics always return a subset of the true matches.
+2. **Without an index, the scan is Myers.** Its cost is the same for every k (about 71 ms per 100 bp read on *E. coli*), and it is about 12 times faster than Sellers. Landau-Vishkin beats it only at small k (up to about k = 8 with our AVX-512 version), and banded DP never does.
+3. **With an index, filters win by orders of magnitude up to a clear limit.** At 10% error the best filter is about 1,400 times faster than a scan; the crossover is at k/m of about 0.17, and our cost model predicts it (0.169 against 0.168 measured), also on a genome it was not fitted on.
+4. **Rare seeds and several hits both help.** Choosing seeds by rarity pays once selection is cheap, and requiring 2 or 3 seed hits in a band moves the useful range up to about 17% error. From 20% error no filter beats the scan.
+5. **A per-query chooser follows the best method.** From k = 12 upwards it is within 0.95 to 1.00 of the best fixed method and never loses to the scan; at small k it pays a few tens of microseconds to choose, so a fixed s-hit filter is better there.
+6. **Real data behave like the simulations.** Human and orangutan mtDNA differ by a median of 15%, exactly at the crossover. The one-hit heuristic keeps read recall of 1.00 up to k = 15 and the two-hit variant loses reads earlier, so a heuristic is a choice with a measured price.
+
+### 5.2 What the comparison shows
+
+Decision table (m = 100 unless stated; speedups are medians over Myers from Section 4.15, *E. coli* 536 / *B. fragilis* blind; the two texts agree within about 15% in every row, so no row has two ranges):
+
+| Situation | Best method | Why |
+|---|---|---|
+| One or a few queries, or no index allowed | Myers scan (single-word loop for m <= 64); Landau-Vishkin for k <= 8 | The scan costs the same for any k (73 to 76 ms per read on 4.6 to 5.2 Mb). The AVX-512 `lv` beats it by 3.9x to 4.8x at k = 1, 2.0x at k = 4, 1.1x to 1.2x at k = 8, and loses from k = 10 (0.9x). The advantage depends on AVX-512; without it the scalar `lv` is slower. |
+| Many queries, k <= 8 (error up to 8%) | Any pigeonhole filter, best `filter_s3` (k <= 6) or `filter_s2` (k = 8); `filter_auto` is within 0.4 to 0.6 of the best | Seeds are 12 to 50 bases, so hits are rare and 2 or 3 required hits cut the windows to about one per read: 18,000x to 30,000x at k = 1 to 6 (15,000x to 30,000x on the blind text), 5,200x / 6,500x at k = 8. `filter_auto` pays a few tens of microseconds to choose, which matters when a query takes 0.003 to 0.05 ms. |
+| Many queries, error 10 to 12% (k = 10, 12) | `filter_fs2` (2 hits, frequency-aware seeds) | 1,414x / 1,386x at k = 10 and 215x / 225x at k = 12; `filter_auto` reaches 0.76 to 0.96 of it. `filter_fs3` is 2x slower at k = 10 (it needs 13 shorter seeds, more hits). |
+| Many queries, error 15 to 17% (k = 15, 17; m = 200, k = 30) | `filter_fs3` (3 hits, frequency-aware seeds); `filter_auto` equals it | 19.5x / 17.3x at k = 15, 5.03x / 4.26x at k = 17, 16.2x / 15.2x at m = 200, k = 30 (each 0.97 to 0.99 for `filter_auto`). The plain `filter_fa` is only 1.3x to 2.9x here. |
+| Error 20% and above (k >= 20 at m = 100, k >= 40 at m = 200) | The Myers scan | All filters are at or below 1.0x (0.4x to 1.0x): the seeds are 4 to 5 bases and occur everywhere, so even 2 or 3 hits in a band cover the whole text. `filter_auto` falls back to the scan (0.99 to 1.00); the s-hit filters used alone lose 1.2x to 2.5x. Crossover with the scan at k/m of about 0.17 to 0.20 on both texts, unchanged by the generalised filters. |
+| Repeat-heavy or low-complexity reads | `filter_auto` (occupancy cost model) | It prices the windows actually produced, so it picks the scan or the better seeds per read. The gate flags such reads (94 to 100 of 100 in the injected stress cases at k = 6 and 10, 0 of 200 natural *B. fragilis* reads), but the window objective it enables helped only one of the four stress cases (Section 4.12) and is not used by `filter_auto`. |
+| Real homologous sequences (mt orangutan against human, median distance 15%) | `filter_fs3` at k = 15 (8x over Myers); the scan at k >= 20 | The real divergence sits at the crossover; Section 4.16. |
+| Only the best match per read is needed | Edlib or WFA2 (best-match semantics) | They answer a different question (Section 2.8); not compared on the all-matches task. |
+| Missing some matches is acceptable | One-hit seed-and-extend heuristic (`blast1`) up to about 15% divergence; avoid the two-hit one above 6 to 8% | One-hit recall is 1.00 up to k = 15 and 0.95 to 0.99 at k = 20 to 40; two-hit recall is 0.96 to 0.99 at k = 15 but 0.73 to 0.86 from k = 20, and both can lose indel-heavy reads (Section 4.16). It is not exact, it uses hand-picked constants, and it is not blastn. |
+
+### 5.3 Scope and caveats
+
+- **Simulated reads, one real experiment.** Reads carry exactly k random edits, never real sequencer errors. The only real divergence is human against orangutan mtDNA (two 16.5 kb genomes, forward strand, 100 and 200 bp segments). The main genome is *E. coli* 536, not K-12 MG1655, which no reachable source provided.
+- **Bacterial scale.** The index is a fixed 11-mer table (about 55 MB of working memory here). On a human-size genome an 11-mer occurs hundreds of times, so the filters would lose selectivity much sooner; longer seeds need an FM-index, which we did not implement.
+- **One machine, one thread, AVX-512.** All numbers come from one Xeon VM. The Landau-Vishkin ratios depend on AVX-512, and identical runs differ by 40% to 60% on this VM, so we quote ratios, and the single-run experiments with 20 reads should not be read below about 10%.
+- **Blind, semi-blind and fitted.** In the cost-model test (Section 4.3) only the *B. fragilis* row is blind, the *E. coli* row is semi-blind (the calibration range was widened to k <= 25 after a first fit failed on it) and the synthetic row is fitted. The constants are machine specific and the model assumes uniformly placed hits; the factor 2.0 in the s-hit prediction was fitted on *E. coli* only.
+- **Edlib and WFA2** answer the best-match question, not all matches within k, so they are compared only on that question (WFA2 through Python scanning a whole genome is outside its design target).
+- **The heuristic is BLAST-like, not blastn.** It uses hand-picked constants (match +2, mismatch -3, X-drop 20, HSP cutoff 34, two-hit window 40), and its recall depends on them.
+- **The banded-versus-Myers explanation is a hypothesis.** Hardware counters were unavailable, so instruction counts come from cachegrind on a generic build and the reason a banded cell costs about 20 instructions against about 1 for a Myers cell is reasoned from the code (Section 4.5).
+- **Not implemented:** the longest-common-extension structure for a worst-case O(nk) Landau-Vishkin, an FM-index, multithreading, SIMD or GPU verification, reverse-complement mapping and graph genomes. The mapping tool searches the forward strand and reports one alignment per read.
+
+This study is a comparison of known exact algorithms plus improved variants of them, not a new algorithm. What it adds is the written-out proofs (including the generalised pigeonhole theorem), a cost model that predicts where filtering stops paying and was tested blind, a per-query chooser, a fast Landau-Vishkin, and measurements that say, for each read length and error rate, which method to use and why.
+
+## 6. Gaps and Future Directions
+
+This section first places our work among the existing algorithms (6.0), then lists what is left to do (6.1).
+
+### 6.0 Existing algorithms and attempted solutions
+
+This is a short survey in our own words; each entry says what the method does, its cost, its main limitation and whether it is implemented in this project or only described. References are numbered as in the list at the end (each was verified, `results/references_verified.md`).
+
+**Sellers' dynamic program [1] (implemented: `sellers`).** The table cell (i, j) holds the cheapest way to align the first i pattern characters to some substring of the text that ends at column j; a free first row lets a match start anywhere. Time is Theta(mn) and space O(m) with one column kept. It is always right and simple, so it is our oracle, but it is far too slow for many reads against a genome. It belongs to the family of global and local alignment recurrences of Needleman and Wunsch [18] and Smith and Waterman [19].
+
+**Ukkonen's cutoff, banded DP [2] (implemented: `banded`).** Values along a diagonal never decrease, so a cell above k can be dropped and only about k + 1 cells per column are computed: O(kn) on average, O(mn) worst case. The cutoff is data dependent and branchy; in our measurements it was slower than Myers' bit-parallel scan from k = 2 although it touches far fewer cells.
+
+**Landau-Vishkin diagonal transitions [8] (implemented: `lv`, `lv_direct`).** For every diagonal and error count it keeps the furthest row reached and slides along matching characters for free. With a constant-time longest-common-extension structure the total is O(nk) in the worst case; with direct comparison, as here, it is O(nk) expected and O(nm) worst case, and the LCE structure is not implemented. It is the fastest exact scan at very small k and slows down linearly in k.
+
+**Myers' bit-vector algorithm [3] (implemented: `myers`, `myers_pruned`).** The differences between neighbouring DP cells are stored as bits, so a column of 64 pattern rows is updated with a few word operations: O(ceil(m/w) n) time whatever k is. It is the best exact scan in our experiments. Edlib [9] is a tuned library of this algorithm with a banded cutoff (survey and baseline only).
+
+**Bit-parallel matching with errors, Wu and Manber [4] (survey only).** The pattern is kept as bit masks, one per allowed number of errors, and all k + 1 masks are updated per text character: O(k ceil(m/w) n), simple and fast for short patterns, but the cost grows with k, unlike Myers' method.
+
+**Four Russians speed-ups, Masek and Paterson [20] (survey only).** The DP table is cut into small blocks whose results are tabulated in advance, which gives roughly O(n max(1, m / log n)) time. The bound needs a finite alphabet and edit costs that are integer multiples of one number, and the gain is only a logarithmic factor, so for DNA word-level parallelism (Myers) is more useful in practice.
+
+**Filter and verify, pigeonhole filtering [4, 5, 13, 14] (implemented: `filter`, `filter_fa`, `filter_fa_w`, `filter_s2`, `filter_s3`, `filter_fs2`, `filter_fs3`, `filter_auto`).** If a pattern matches with at most k errors, at least one of any k + 1 disjoint pieces occurs exactly (Theorem 4), so an index finds the exact piece hits and only the surrounding windows are verified. Cost is an index plus work proportional to the hits, which is excellent at low error and degrades once pieces become short and hit everywhere. Navarro's survey [5] reviews the filter family. Our variants choose cut points by dynamic programming to minimise hits, the idea of the Optimal Seed Solver [13] (related to search schemes on a bidirectional index [14]), require s hits inside a band of k diagonals (Theorem 12), and choose the method per read by a cost model.
+
+**BLAST, seed and extend [6] (a simplified version is implemented: `blast1`, `blast2`).** Short exact word hits are extended without gaps until the score drops, and the best are verified. It is fast and tolerant of divergence but heuristic: true matches can be missed, and the miss rate grows with the error rate, which we measure (Section 4.16).
+
+**Index-based read mappers: BWA [17] and minimap2 [11] (survey only).** BWA searches a compressed full-text index based on the Burrows-Wheeler transform [16] by backward search that allows a limited number of mismatches and gaps, and scales to human-size genomes. Minimap2 selects minimizers [15] as seeds, chains them and then aligns, which suits long noisy reads. Both trade the guarantee of reporting every match within k for speed and memory; neither answers the all-ends k-differences question that this project's exact methods answer.
+
+**Wavefront alignment [10] and Edlib [9] (outside baselines only).** WFA computes an optimal gap-affine alignment in time proportional to the number of edits, so it is excellent for similar sequences and slow when scanning a whole genome (67 to 766 ms per query in our runs, Section 4.9). Both return the best alignment per read, not every end position within k, so they are compared only on "best match per read".
+
+**Hardness [7, 12].** Backurs and Indyk proved that exact edit distance cannot be computed in time O(n^(2 - epsilon)) unless the Strong Exponential Time Hypothesis fails; Equi et al. [12] prove the analogous statement for matching in graphs. Every method above therefore gets its speed from the typical case (low error, non-repetitive text), from an index, or from word-level parallelism, not from a better worst case.
+
+| Method | Time | Exact or heuristic | Best when | In this project |
+|---|---|---|---|---|
+| Sellers [1] | Theta(mn) | exact | oracle, tiny inputs | implemented |
+| Ukkonen band [2] | O(kn) expected | exact | simple code, small k | implemented |
+| Landau-Vishkin [8] | O(kn) with LCE; O(kn) expected, O(nm) worst with direct extension | exact | very small k (k <= 8 here, with AVX-512) | implemented (no LCE) |
+| Myers [3] | O(ceil(m/w) n) | exact | one-off scans, error above about 20% | implemented |
+| Wu-Manber [4] | O(k ceil(m/w) n) | exact | short patterns | survey only |
+| Four Russians [20] | about O(mn / log n) | exact | theory, rational costs | survey only |
+| Pigeonhole filters [4, 5, 13] | index plus O(hits) | exact | many queries, error up to about 17% | implemented (several variants) |
+| BLAST-style [6] | heuristic, fast | heuristic | low divergence, misses acceptable | simplified version |
+| BWA, minimap2 [11, 17] | index based | not exhaustive | genome-scale read mapping | survey only |
+| Edlib, WFA [9, 10] | tuned Myers; O(ns) | exact, best match | best alignment per read | outside baselines |
+
+### 6.1 Future directions
+
+1. **Optimal search schemes.** Equal or frequency-aware partitioning uses one split of the pattern into k+1 pieces. Search schemes over a bidirectional index split the pattern into more parts and allow errors in different places in different searches, which cuts the verified candidates further [14].
+2. **FM-index and bidirectional search.** A 4^11 table limits seeds to 11 characters and scales poorly beyond bacterial genomes. A compressed full-text index (FM-index [16]) supports arbitrary-length seeds and inexact search by backtracking, as in BWA [17]; combining our DP seed selection with FM-index counts is the natural next step.
+3. **Wavefront alignment.** WFA [10] runs in O(ns) time for score s and is exact for gap-affine alignment; here it was slow when scanning a genome (67 to 766 ms), but it is the stronger tool for verifying a candidate window, replacing Myers for long, similar sequences.
+4. **Minimizers and chaining.** Sampling seeds as minimizers [15] and chaining them, as in minimap2 [11], reduces the index and the candidate count for long noisy reads, trading away our completeness guarantee.
+5. **Faster candidate generation for the s-hit filters.** The 2-hit and 3-hit filters sort all seed hits (std::sort); a radix sort, or a per-band bitmask counter, would cut their cost at 15 to 20% error, where there are hundreds of thousands of hits, and might move the crossover with a scan; s = 4 and larger, and combining s hits with a longer seed index (FM-index), are untried.
+6. **Faster verification.** Edlib [9], which adds a banded cutoff to Myers' algorithm, is still 1.3x to 1.8x faster than our pruned Myers, and verification dominates for k >= 10. SIMD or GPU batching of many windows is not implemented (only Landau-Vishkin has an AVX-512 loop, which made it 5x to 6x faster), nor is a worst-case O(nk) Landau-Vishkin with a longest-common-extension structure; these are the open directions on the exact side.
+7. **Long noisy reads.** At 10 to 15% error the pigeonhole pieces are 6 to 9 characters long and every filter degenerates to a scan; the real human-orangutan mtDNA divergence (median 15%) sits at that crossover. Exact methods need either fewer-but-longer seeds with error-tolerant matching, or heuristics with a measured recall.
+8. **Graphs and pangenomes.** Matching against labelled graphs has a quadratic conditional lower bound under SETH [12], so the same trade-off between exactness and speed returns in harder form.
+9. **Minimise verified length or window count, not hit count.** Lemma 6 minimises seed hits, but verification cost depends on the merged window length and count. We tested hits + lambda * windows (`filter_fa_w`, Section 4.12): it cuts verified bases 4.5-fold in the case that motivated it, but its seed selection costs more than it saves, and capping the work removes the effect. The s-hit filters of Section 2.13 attack the same problem, too many candidate windows, from the other side and gave the larger gain. A cheap estimate of a seed's windows (for example from precomputed repeat clusters of the index, or a sampled subset of its hit list) is needed before this objective can pay off.
+10. **Better cost models.** Our model assumes uniform hits, was fitted on one machine, its window and base terms are collinear, and the fit depends on the calibration range (Section 4.3); modelling clustered hits (repeats), fitting over the crossover region and adapting seed length per query are open improvements. The expected-case formula of Section 4.1 could replace the sampled estimate of H.
+11. **Mapping features.** Reverse-complement reads, multiple alignments per read, mapping qualities and gapped alignment with affine costs are not implemented.
+12. **Limits of this setup:** see Section 5.3 (simulated reads outside one experiment, one run per point outside the headline experiment, bacterial genome scale, single thread, no hardware counters).
+
+## Appendix: development notes
+
+This appendix keeps the bookkeeping out of the main text: variants we tried (including the ones that failed), the older non-interleaved measurements of the chooser, and the review log.
+
+### A.1 Variants tried
+
+**Seed selection and the chooser.**
+
+1. *Original DP*: 17 to 49 microseconds at k = 1 to 12 (baseline).
+2. *Prefix tables, all lengths*: 1.3x to 2x cheaper, identical hits. Kept.
+3. *Length cap 3, 2, 1*: cap 2 chosen; cap 1 loses hit quality at k >= 10.
+4. *First `filter_auto` (Poisson cost model, DP skipped when predicted equal-split cost <= 2 x selection cost)*: failed on the low-complexity stress case, ratio 2.02 in a 20-read check, because the model assumes uniformly placed hits and wrongly preferred `filter_fa` there (fewer hits, but scattered). Replaced by the occupancy cost model (ratio 0.96).
+5. *Eager costing of the equal split*: correct but +30 to 40 microseconds on stress reads whose equal split has 20,000 hits (ratio 1.38 at k = 6 on one stress setting). Fixed by costing it lazily with the lower bound c_hit * H_eq.
+6. *Skip multiplier 0, 1, 2, 4* (E. coli and synthetic, k = 1 to 8): 0, 1 and 2 are indistinguishable at microsecond scale (noise about 10%), 4 is clearly worse (up to 1.58x). Chose 1.0, the principled value (the DP cannot save more than the whole equal-split cost). Because selection is now cheap, the skip rule rarely fires (8% of queries at k = 1, 2% at k = 2, almost never above).
+7. *Small-H shortcut and reciprocal multiply in the occupancy pass, reused buffers*: these trimmed the fixed per-query overhead (a few microseconds each, not measured separately). Together with the lazy costing and skip multiplier 1, they took the ratio at k = 2, 4, 6 from 1.25, 1.18, 1.14 to 0.99, 1.05, 1.02.
+
+**Generalised pigeonhole, the chooser's s-hit options and the gate.**
+
+1. *Generalised filter as specified* (k + s pieces, s + 1 hits): not implemented, because it is not correct: k edits leave only s of k + s pieces untouched, so requiring s + 1 hits would lose true matches. Implemented k + s pieces with s hits instead (s = 1, 2, 3), proved in Theorem 12.
+2. *s = 2 and s = 3 with equal-split seeds*: win at 10 to 17% error (see the table) but weaker than the frequency-aware variants; kept as `filter_s2`, `filter_s3`.
+3. *s-hit with frequency-aware seeds* (`filter_fs2`, `filter_fs3`): the best fixed method at k = 10 to 17; kept.
+4. *Adding the s-hit options to `filter_auto` with the first trigger (best cost > 30 selection costs)*: the s options were never evaluated at k <= 8 or on the real homologs, so 2.5x to 4x of the gain was missed. Trigger 4 and 2 perform alike (E. coli k = 8: 0.026 and 0.025 ms against 0.034 without s; mt k = 15: 0.055 and 0.054 against 0.121); trigger 2 is the default.
+5. *Prediction multiplier*: the Poisson-binomial window count was 1.1x to 2.6x below the measured merged windows, so it is multiplied by 2.0 (tuned on *E. coli* only).
+6. *Gated window objective with the sorted estimate*: no better than ungated on the failing cases (selection still 9 to 16 ms); the binned estimate was needed.
+7. *Gate thresholds* (ratio 20, minimum count 100): chosen from the separation above; not swept further.
+
+**Landau-Vishkin.** Temporal blocking gave a small and inconsistent gain (134 against 132 ms at k = 5 in one run, 122 against 148 ms in Table 4.13, 706 against 699 ms at k = 30); the scalar cell is instruction bound at about 30 instructions or 4.4 ns, not memory bound. The packed XOR + ctz extension alone (`lv_stream`) gave about 1.5x, and the AVX-512 loop gave the large step.
+
+**Single-word Myers.** An earlier version of Table 4.14 used m = 64, where about half the reads grow past 64 bases and need a second block; it mixed one-block and two-block scans and showed a spurious 1.5x difference between two identical loops. The table now uses m <= 60.
+
+**Window-aware objective.** Capping the hit lists that are examined at 1,000 made selection cheap (0.19 ms) but then the objective stopped working (1,515 windows, 191,528 bases, 3.64 ms against 3.25 for `filter_fa`). Over all 20 settings tested the window-aware variant was never more than 5% faster than `filter_fa` and was more than 5% slower in 18 of them; the capped variant was never faster (slower in 15). This was before the binned estimate and the gate of Section 4.12.
+
+**Cost model fit.** A first fit restricted to k <= 15 gave c_win = 1,123 ns and c_bp = 2.56 ns and failed near the crossover; the calibration range was widened to k <= 25 (Section 4.3).
+
+### A.2 Older non-interleaved measurements of the chooser
+
+**Chooser without the s-hit options.** *(This is the chooser without the s-hit options, one non-interleaved run; margins of 0.87 to 1.08 are below the VM noise, so they show only that the rule was not worse than its fixed options. The current rule and its interleaved evaluation are in Section 4.15.)* Mean ms per query, best of 3 runs (100 reads in every setting); `auto/best` is `filter_auto` divided by the smaller mean of `filter` and `filter_fa`. Choices count queries per decision (skip = the DP was not run, a subset of eq):
 
 | text | setting | filter | filter_fa | filter_auto | auto/best | choices (skip / eq / fa / scan) |
 |---|---|---|---|---|---|---|
@@ -507,74 +1081,16 @@ Prefix tables alone cut the selection time by 1.3x to 2.0x; the length cap adds 
 
 Worst auto/best ratio: 1.08 (E. coli 536, m=100, k=10); 2 of 30 settings exceed 1.05: E. coli 536 m=100, k=10 (1.08); E. coli 536 m=800, k=40 (1.07).
 
-The 5% target is met in 28 of 30 settings of this single run (most ratios lie between 0.83 and 1.05), and the two exceptions are settings whose ratio flipped between runs. A repeat check with 300 reads and 6 interleaved runs per algorithm shows how noisy the VM is:
+A 5% target was met in 28 of 30 settings of this single run (most ratios lie between 0.83 and 1.05), and the two exceptions are settings whose ratio flipped between runs. A repeat check with 300 reads and 6 interleaved runs per algorithm shows how noisy the VM is:
 
 | setting | filter_fa runs: min to max (ms) | filter_auto runs: min to max (ms) | spread of the same algorithm | ratio of medians auto / fa | ratio of minima |
 |---|---|---|---|---|---|
 | m=100, k=10 | 0.408 to 0.580 | 0.410 to 0.596 | 42% | 0.887 | 1.005 |
 | m=800, k=40 | 0.407 to 0.659 | 0.443 to 0.651 | 62% | 1.296 | 1.089 |
 
-The same algorithm varied by 42% and 62% between identical runs, so a 5% bound cannot be certified on this VM for every setting: the overhead of `filter_auto` over the best fixed choice is typically 0% to 5%, and two repeat checks of the same setting (m = 800, k = 40) gave a ratio of medians of 1.01 in an earlier inline check and 1.30 in the saved one (ratio of minima 1.005 and 1.09). In the stress case that motivated the occupancy cost model (low-complexity edge, k = 10) `filter_auto` is faster than both fixed filters (1.29 against 1.34 and 2.25 ms), choosing the equal split for 49 of 100 reads.
+The same algorithm varied by 42% and 62% between identical runs, so a 5% bound cannot be certified on this VM for every setting: the overhead of the chooser over the best fixed choice was typically 0% to 5%, and two repeat checks of the same setting (m = 800, k = 40) gave a ratio of medians of 1.01 in one check and 1.30 in the other (ratio of minima 1.005 and 1.09). In the stress case that motivated the occupancy cost model (low-complexity edge, k = 10) `filter_auto` is faster than both fixed filters (1.29 against 1.34 and 2.25 ms), choosing the equal split for 49 of 100 reads.
 
-**Variants tried and what happened** (selection and `filter_auto`):
-1. *Original DP*: 17 to 49 microseconds at k = 1 to 12 (baseline).
-2. *Prefix tables, all lengths*: 1.3x to 2x cheaper, identical hits. Kept.
-3. *Length cap 3, 2, 1*: cap 2 chosen; cap 1 loses hit quality at k >= 10.
-4. *First `filter_auto` (Poisson cost model, DP skipped when predicted equal-split cost <= 2 x selection cost)*: failed on the low-complexity stress case, ratio 2.02 in a 20-read check, because the model assumes uniformly placed hits and wrongly preferred `filter_fa` there (fewer hits, but scattered). Replaced by the occupancy cost model (ratio 0.96).
-5. *Eager costing of the equal split*: correct but +30 to 40 microseconds on stress reads whose equal split has 20,000 hits (ratio 1.38 at k = 6 on one stress setting). Fixed by costing it lazily with the lower bound c_hit * H_eq.
-6. *Skip multiplier 0, 1, 2, 4* (E. coli and synthetic, k = 1 to 8): 0, 1 and 2 are indistinguishable at microsecond scale (noise about 10%), 4 is clearly worse (up to 1.58x). Chose 1.0, the principled value (the DP cannot save more than the whole equal-split cost). Because selection is now cheap, the skip rule rarely fires (8% of queries at k = 1, 2% at k = 2, almost never above).
-7. *Small-H shortcut and reciprocal multiply in the occupancy pass, reused buffers*: these trimmed the fixed per-query overhead (a few microseconds each, not measured separately). Together with the lazy costing and skip multiplier 1, they took the ratio at k = 2, 4, 6 from 1.25, 1.18, 1.14 to 0.99, 1.05, 1.02.
-
-**Landau-Vishkin** (*E. coli* 536, m = 100, 5 reads, best of 3 runs, ms per read):
-
-| k | phase-2 LV | lv_direct (control) | lv_stream | lv scalar blocked | lv AVX-512 (default) | speedup of default vs phase-2 | Myers |
-|---|---|---|---|---|---|---|---|
-| 1 | 92.8 | 90.3 | 53.5 | 40.9 | 15.5 | 5.97x | 61.2 |
-| 5 | 212.3 | 214.4 | 148.4 | 121.6 | 40.5 | 5.24x | 61.5 |
-| 10 | 426.8 | 425.8 | 270.6 | 237.5 | 75.4 | 5.66x | 67.2 |
-| 30 | 1189.8 | 1175.7 | 699.3 | 706.4 | 207.9 | 5.72x | 69.4 |
-
-Variants: the packed XOR + ctz extension alone (`lv_stream`) gave about 1.5x; temporal blocking gave a small and inconsistent gain (134 against 132 ms at k = 5 in one run, 122 against 148 ms in the table above, 706 against 699 ms at k = 30; the scalar cell is instruction-bound at about 30 instructions or 4.4 ns, not memory-bound); the AVX-512 cell loop gave the large step: 5.2x to 6.0x faster than phase 2 at every k tested, exact. On a CPU without AVX-512 the scalar blocked loop is 1.7x to 2.3x faster than phase 2. The target of at least 3x at k = 5, m = 100 is met (5.2x). From the measured points, `lv` is faster than plain Myers for k up to about 8, than pruned Myers for k up to about 6, and than Edlib (best-match only) for k up to about 3 to 4 at m = 100 (interpolated between k = 1, 5, 10, 30); beyond that its O(nk) growth wins out.
-
-**Myers and Myers with pruning at one block** (*E. coli* 536, 10 reads, best of 5 runs, ms per read; rows with m <= 60 are one block for every read; an earlier version of this table used m = 64, where about half the reads grow past 64 bases and need a second block, which mixed one- and two-block scans and showed a spurious 1.5x difference between two identical loops):
-
-| m (blocks) | k | Myers phase 2 | Myers now | pruned phase 2 | pruned now | pruned now / Myers now | pruned now vs phase-2 pruned | Edlib (best/read) |
-|---|---|---|---|---|---|---|---|---|
-| 20 (1) | 2 | 39.6 | 19.3 | 46.3 | 18.6 | 0.96 | 2.49x | 43.8 |
-| 32 (1) | 5 | 38.9 | 19.0 | 48.6 | 19.4 | 1.02 | 2.50x | 34.4 |
-| 50 (1) | 2 | 39.7 | 19.4 | 48.5 | 19.6 | 1.01 | 2.47x | 34.6 |
-| 50 (1) | 5 | 37.6 | 18.7 | 50.2 | 18.9 | 1.02 | 2.65x | 35.4 |
-| 50 (1) | 10 | 40.8 | 19.6 | 48.8 | 19.0 | 0.97 | 2.58x | 33.2 |
-| 56 (1) | 5 | 39.0 | 19.2 | 45.8 | 18.7 | 0.98 | 2.44x | 34.7 |
-| 60 (1) | 2 | 37.7 | 18.7 | 49.2 | 18.8 | 1.00 | 2.62x | 35.9 |
-| 100 (2) | 5 | 66.1 | 68.8 | 46.9 | 46.4 | 0.67 | 1.01x | 34.8 |
-| 100 (2) | 20 | 67.9 | 75.0 | 46.9 | 48.6 | 0.65 | 0.96x | 36.2 |
-
-At one block the pruned scan takes 0.96 to 1.02 times the time of plain Myers (they now run the same loop), against 1.2x to 1.3x slower in phase 2; both are about 2.0x faster than phase-2 plain Myers (39 to 19 ms) and 2.4x to 2.7x faster than phase-2 pruned, and 1.7x to 2.3x faster than Edlib at m <= 60. The Peq table was already built once per read; the gain is from dropping the per-scan vector set-up and carry bookkeeping. For two or more blocks nothing changed (the m = 100 rows).
-
-### 4.10 Phase 3B: generalised pigeonhole and the gated window objective
-
-As in Section 4.9, these are targeted runs (`scripts/phase3b_filter_s.py`, `phase3b_gate.py`, `phase3b_auto.py`) on the same VM at a later time; compare ratios within a table. Tuning (the length cap, the prediction multiplier 2.0, the trigger 2, the gate thresholds) used *E. coli* 536, the synthetic genome and the synthetic stress text only. Evaluation on real homologs used the mt_orang segments against mt_human. Every s-hit variant is checked against Sellers (`tests/crosscheck.py`, `crosscheck_real.py`: 1,440 real-data comparisons, and `tests/test_filter_s.py`: 1,120 comparisons on 800 planted reads including `filter_auto` with the s-hit options forced on, k up to 25, indel-heavy and clustered edits, repeats and N): 0 failures.
-
-**Generalised pigeonhole.** Pure filters (fallback off), mean ms per read with the number of merged candidate windows in brackets (50 reads for *E. coli*, 100 segments for the mt data):
-
-| text | k | Myers | filter | filter_fa | filter_s2 | filter_s3 | filter_fs2 | filter_fs3 |
-|---|---|---|---|---|---|---|---|---|
-| E. coli 536, m = 100 (10% error) | 10 | 75.678 | 1.238 (493 w) | 0.588 (215 w) | 0.082 (5 w) | 0.274 (1 w) | 0.049 (2 w) | 0.103 (1 w) |
-| E. coli 536, m = 100 (12% error) | 12 | 75.303 | 8.434 (4023 w) | 3.631 (1702 w) | 0.984 (231 w) | 1.439 (27 w) | 0.329 (40 w) | 0.523 (4 w) |
-| E. coli 536, m = 100 (15% error) | 15 | 75.254 | 42.950 (11915 w) | 25.572 (9720 w) | 25.081 (7123 w) | 13.615 (2474 w) | 5.981 (1839 w) | 3.972 (339 w) |
-| E. coli 536, m = 100 (17% error) | 17 | 79.607 | 77.715 (7007 w) | 54.495 (12610 w) | 48.431 (10765 w) | 52.271 (4772 w) | 27.947 (7723 w) | 17.285 (3380 w) |
-| E. coli 536, m = 100 (20% error) | 20 | 78.797 | 114.097 (521 w) | 85.346 (2859 w) | 115.084 (222 w) | 119.190 (2199 w) | 89.646 (6764 w) | 83.850 (9138 w) |
-| E. coli 536, m = 100 (25% error) | 25 | 73.376 | 261.709 (1 w) | 141.522 (2 w) | 302.836 (2 w) | 308.442 (1 w) | 154.237 (3 w) | 180.331 (6 w) |
-| mt_orang vs mt_human, m = 100 | 15 | 0.249 | 0.160 (45 w) | 0.116 (38 w) | 0.176 (40 w) | 0.078 (20 w) | 0.043 (10 w) | 0.030 (4 w) |
-| mt_orang vs mt_human, m = 100 | 20 | 0.246 | 0.360 (1 w) | 0.353 (5 w) | 0.467 (1 w) | 0.486 (3 w) | 0.321 (13 w) | 0.328 (21 w) |
-| mt_orang vs mt_human, m = 100 | 25 | 0.253 | 1.082 (1 w) | 0.573 (1 w) | 0.980 (1 w) | 1.200 (1 w) | 0.495 (1 w) | 0.606 (1 w) |
-| mt_orang vs mt_human, m = 200 | 30 | 0.602 | 0.510 (7 w) | 0.543 (21 w) | 0.362 (20 w) | 0.155 (13 w) | 0.224 (15 w) | 0.147 (6 w) |
-| mt_orang vs mt_human, m = 200 | 40 | 0.492 | 0.750 (1 w) | 0.607 (1 w) | 0.840 (1 w) | 0.813 (1 w) | 0.631 (1 w) | 0.650 (1 w) |
-
-The full table (seed hits, bases verified, candidate-generation time) is in `results/phase3b_filter_s.md`. At 10 to 12% error the s = 2 filters verify 2 to 40 windows instead of 215 to 1,700: `filter_fs2` is 12x faster than `filter_fa` at k = 10 (0.049 against 0.588 ms) and 11x at k = 12 (0.329 against 3.63 ms), and 1,500x and 230x faster than a Myers scan. At 15 to 17% error s = 3 wins (`filter_fs3`: 3.97 ms at k = 15, 6.4x faster than `filter_fa` and 19x faster than Myers; 17.3 ms at k = 17, 4.6x faster than Myers where `filter_fa` is 1.5x). Frequency-aware seeds beat equal-split seeds in every case here, by 1.5x to 7x. At 20% error and above they stop helping (k = 20: 84 to 94 ms against 79 ms for Myers; the 4-base seeds occur about every 256 bases, so even pairs and triples in a band cover the whole text), so the crossover with a scan stays at about k/m = 0.19 to 0.20 for every variant; what changes is how much faster the filter is below it. On the real homologs (median distance 15%): `filter_fs3` takes 0.030 ms at k = 15 against 0.116 for `filter_fa` and 0.249 for Myers (8.3x), and for 200 bp segments at k = 30 `filter_s3` and `filter_fs3` take 0.155 and 0.147 ms against 0.543 for `filter_fa` and 0.602 for Myers (4x); at k = 20 (m = 100) and k = 40 (m = 200) there is no gain.
-
-**`filter_auto` with the s-hit options.** Mean ms per read with the fallback active, best of 3 runs, 100 reads; `filter_auto (no s)` is the phase-3A rule (`APPROX_AUTOS=0`):
+**Chooser with the s-hit options.** Mean ms per read with the fallback active, best of 3 runs, 100 reads, non-interleaved; `filter_auto (no s)` is the chooser without the s-hit options (`APPROX_AUTOS=0`):
 
 | text | setting | Myers | filter | filter_fa | filter_fs2 | filter_fs3 | filter_auto (no s) | filter_auto | auto / best fixed | choices s2 / s3 |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -598,300 +1114,15 @@ The full table (seed hits, bases verified, candidate-generation time) is in `res
 
 Worst auto/best-fixed ratio: 1.77 (E. coli 536, m=200, k=20); 11 of 17 settings exceed 1.05.
 
-The cost model does support the extension: with the s-hit options `filter_auto` is 3x to 10x faster than the 3A version in the 10 to 17% error range on *E. coli* (k = 10: 0.067 against 0.428 ms; k = 12: 0.350 against 3.36; k = 15: 3.87 against 25.1; k = 17: 16.9 against 53.1, which is 4.3x faster than Myers) and on the synthetic genome, 2.3x on the real homologs at k = 15 (0.051 against 0.115 ms) and 2.3x at m = 200, k = 30, and it never loses at k = 20 (72.6 against 73.3 ms for Myers: all queries go to the scan, or to 3-hit for 6%). The ratio to the best fixed method in hindsight exceeds 1.05 in 11 of 17 settings, up to 1.77, but only where the whole query takes less than about 0.3 ms (k <= 10 and m = 200, k = 20: for example 0.067 against 0.047 ms): `filter_auto` has to evaluate the options (two extra seed selections and a window prediction, about 10 to 30 microseconds) and hindsight does not pay for that information. For queries above 0.3 ms the ratio is 1.00 to 1.15. The model's prediction of the window count is 1.1x to 2.6x low on *E. coli* before the multiplier (measured windows against the Poisson-binomial estimate, k = 10 to 17), and on the 16.5 kb text the model constants (fitted on 4.6 Mb genomes) mis-rank the options at k = 20 (`filter_auto` 0.279 ms against 0.242 for Myers).
+The cost model does support the extension: with the s-hit options the chooser is 3x to 10x faster than without them in the 10 to 17% error range on *E. coli* (k = 10: 0.067 against 0.428 ms; k = 12: 0.350 against 3.36; k = 15: 3.87 against 25.1; k = 17: 16.9 against 53.1, which is 4.3x faster than Myers) and on the synthetic genome, 2.3x on the real homologs at k = 15 (0.051 against 0.115 ms) and 2.3x at m = 200, k = 30, and it never loses at k = 20 (72.6 against 73.3 ms for Myers: all queries go to the scan, or to 3-hit for 6%).
 
-**Gated window objective.** Fraction of reads flagged and, before and after, pure filters (mean ms per read, best of 3; seed-selection ms in brackets); `sort` is the phase-2 estimate, `binned` the new one:
+The ratio to the best fixed method in hindsight exceeds 1.05 in 11 of 17 settings, up to 1.77, but only where the whole query takes less than about 0.3 ms (k <= 10 and m = 200, k = 20: for example 0.067 against 0.047 ms): `filter_auto` has to evaluate the options (two extra seed selections and a window prediction, about 10 to 30 microseconds) and hindsight does not pay for that information. For queries above 0.3 ms the ratio is 1.00 to 1.15.
 
-| scenario | k | reads flagged | ratio median | ratio p90 |
-|---|---|---|---|---|
-| E. coli uniform | 6 | 0 of 100 | 5.8 | 10.0 |
-| E. coli uniform | 10 | 0 of 100 | 3.2 | 5.0 |
-| E. coli uniform | 15 | 0 of 100 | 2.4 | 3.1 |
-| stress uniform | 6 | 0 of 100 | 5.8 | 9.2 |
-| stress uniform | 10 | 1 of 100 | 3.4 | 5.5 |
-| stress uniform | 15 | 0 of 100 | 2.5 | 4.6 |
-| stress clustered | 6 | 1 of 100 | 5.8 | 9.2 |
-| stress clustered | 10 | 1 of 100 | 3.4 | 6.3 |
-| stress clustered | 15 | 0 of 100 | 2.4 | 4.2 |
-| stress low-complexity edge | 6 | 97 of 100 | 4843.3 | 5655.8 |
-| stress low-complexity edge | 10 | 94 of 100 | 189.0 | 362.0 |
-| stress low-complexity edge | 15 | 0 of 100 | 5.3 | 6.4 |
-| stress low-complexity inside | 6 | 100 of 100 | 3931.7 | 5655.8 |
-| stress low-complexity inside | 10 | 96 of 100 | 188.2 | 362.0 |
-| stress low-complexity inside | 15 | 0 of 100 | 5.4 | 6.4 |
+The model's prediction of the window count is 1.1x to 2.6x low on *E. coli* before the multiplier (measured windows against the Poisson-binomial estimate, k = 10 to 17), and on the 16.5 kb text the model constants (fitted on 4.6 Mb genomes) mis-rank the options at k = 20 (`filter_auto` 0.279 ms against 0.242 for Myers).
 
-| scenario | k | filter (equal split) | filter_fa (hits) | filter_fa_w, sort estimate (phase 2) | filter_fa_w, binned estimate | filter_fa_wg (gated, binned) | filter_fa_wg (gated, sort estimate) | filter_auto |
-|---|---|---|---|---|---|---|---|---|
-| stress low-complexity edge | 6 | 0.477 (0.000) | 0.042 (0.005) | 11.558 (11.520) | 0.680 (0.646) | 0.700 (0.664) | 11.349 (11.310) | 0.042 (0.005) |
-| stress low-complexity edge | 10 | 1.503 (0.000) | 2.603 (0.015) | 9.560 (8.643) | 1.495 (0.549) | 1.517 (0.547) | 9.634 (8.680) | 1.435 (0.014) |
-| stress low-complexity edge | 15 | 34.572 (0.000) | 25.893 (0.025) | 33.373 (4.513) | 29.097 (0.361) | 28.239 (0.027) | 27.246 (0.026) | 25.000 (0.023) |
-| stress low-complexity inside | 6 | 0.771 (0.000) | 0.569 (0.006) | 24.582 (23.953) | 1.832 (1.288) | 1.904 (1.335) | 23.506 (22.909) | 0.717 (0.007) |
-| stress low-complexity inside | 10 | 1.889 (0.000) | 1.580 (0.011) | 17.498 (16.085) | 2.288 (0.937) | 2.264 (0.911) | 16.611 (15.272) | 1.482 (0.010) |
-| stress low-complexity inside | 15 | 26.560 (0.000) | 20.691 (0.020) | 36.679 (10.218) | 25.715 (0.627) | 19.285 (0.018) | 19.476 (0.018) | 20.019 (0.018) |
-| E. coli uniform | 6 | 0.033 (0.000) | 0.013 (0.006) | 0.132 (0.124) | 0.053 (0.046) | 0.013 (0.006) | 0.014 (0.006) | 0.012 (0.005) |
-| E. coli uniform | 10 | 0.928 (0.000) | 0.425 (0.012) | 0.725 (0.182) | 0.500 (0.071) | 0.428 (0.013) | 0.427 (0.013) | 0.437 (0.014) |
-| E. coli uniform | 15 | 39.063 (0.000) | 24.400 (0.026) | 25.075 (0.191) | 24.650 (0.119) | 25.045 (0.027) | 25.397 (0.027) | 25.329 (0.026) |
-| stress clustered | 6 | 0.046 (0.000) | 0.023 (0.006) | 0.365 (0.348) | 0.080 (0.064) | 0.037 (0.020) | 0.235 (0.218) | 0.024 (0.007) |
-| stress clustered | 10 | 1.108 (0.000) | 0.510 (0.013) | 1.251 (0.740) | 0.634 (0.105) | 0.534 (0.039) | 1.054 (0.559) | 0.536 (0.014) |
-| stress clustered | 15 | 38.551 (0.000) | 25.297 (0.028) | 26.564 (0.852) | 26.613 (0.167) | 25.637 (0.026) | 26.377 (0.029) | 26.775 (0.027) |
+### A.3 Review log
 
-The gate separates well: 0 of 30 ordinary reads are flagged (the largest-seed-count ratio is 2 to 11 times the random expectation) against 28 to 30 of 30 low-complexity reads at k = 6 and 10 (ratio 100 to 5,000); at k = 15 the seeds are so short that the ratio is never large (nothing flagged). It matters for ordinary reads: ungated `filter_fa_w` costs 18% (binned) to 70% (sorted) more than `filter_fa` on *E. coli* at k = 10 (0.500 and 0.725 against 0.425 ms), while the gated version costs the same as `filter_fa` (0.428 ms). The binned estimate is the larger fix: window-aware selection falls from 8.6 to 0.55 ms on the low-complexity edge case at k = 10 and from 24 to 1.3 ms on the inside case at k = 6. **Before and after on the stress cases that failed:** at low-complexity edge, k = 10 the objective now helps (gated binned 1.52 ms against 2.60 for `filter_fa`, the same as the equal split 1.50, and 9.6 ms before), but at edge k = 6 it hurts (0.70 against 0.042 ms for `filter_fa`: the hits-only seeds already have 12 hits, and the window computation costs 0.66 ms) and on the inside cases it stays worse than `filter_fa` (k = 6: 1.90 against 0.57; k = 10: 2.26 against 1.58). `filter_auto` is at or near the best in every one of these cases (0.042, 1.44, 0.72, 1.48 ms), so the window objective is not needed there: the occupancy cost model of Section 2.12 already makes the choice. Conclusion: gating and binning make the window objective safe and cheap, but it helps only one of the failing cases and is not part of `filter_auto`.
-
-**Variants tried and what happened** (phase 3B):
-1. *Generalised filter as specified* (k + s pieces, s + 1 hits): not implemented, because it is not correct: k edits leave only s of k + s pieces untouched, so requiring s + 1 hits would lose true matches. Implemented k + s pieces with s hits instead (s = 1, 2, 3), proved in Theorem 12.
-2. *s = 2 and s = 3 with equal-split seeds*: win at 10 to 17% error (see the table) but weaker than the frequency-aware variants; kept as `filter_s2`, `filter_s3`.
-3. *s-hit with frequency-aware seeds* (`filter_fs2`, `filter_fs3`): the best fixed method at k = 10 to 17; kept.
-4. *Adding the s-hit options to `filter_auto` with the first trigger (best cost > 30 selection costs)*: the s options were never evaluated at k <= 8 or on the real homologs, so 2.5x to 4x of the gain was missed. Trigger 4 and 2 perform alike (E. coli k = 8: 0.026 and 0.025 ms against 0.034 without s; mt k = 15: 0.055 and 0.054 against 0.121); trigger 2 is the default.
-5. *Prediction multiplier*: the Poisson-binomial window count was 1.1x to 2.6x below the measured merged windows, so it is multiplied by 2.0 (tuned on *E. coli* only).
-6. *Gated window objective with the sorted estimate*: no better than ungated on the failing cases (selection still 9 to 16 ms); the binned estimate was needed.
-7. *Gate thresholds* (ratio 20, minimum count 100): chosen from the separation above; not swept further.
-
-### 4.11 Final pass: blind evaluation, interleaved timing and hardware
-
-**Hardware.** Every number in this report comes from one machine: an Intel Xeon (2.10 GHz, virtual machine) with AVX-512 (avx512f, cd, vl, dq, ifma). The binary is built with `-march=native`, so the packed Landau-Vishkin cell loop (`lv`) did use AVX-512 here (`APPROX_LVSIMD=0` gives the scalar path measured in Section 4.9). The Landau-Vishkin ratios below depend on that: on a machine without AVX-512 the same code compiles to the slower scalar blocked loop, so `lv` would lose most of its advantage over Myers at k = 4 to 8. Myers, the filters and `filter_auto` use no AVX-512 and do not change. Numbers were not re-measured on any other machine and nothing from another machine is mixed in; the VM adds run-to-run noise of tens of percent to absolute times, which is why this section quotes ratios.
-
-**Method.** `scripts/final_eval.py` runs every method on every read inside one process (`approx multi:<methods>`, a timing harness that adds no algorithm code): the order of the methods rotates per read and per repeat, the seed index is built once before timing, and process startup and index build are excluded from all times (they are a one-time cost, Section 4.2). Three repeats of 60 reads per setting (180 timed reads per cell). The cell is the speedup over a Myers scan on the same read and repeat (time(Myers) / time(method)): median and 10th to 90th percentile. All nine methods returned identical end positions on every read (0 mismatches in all 26 settings). The fallback is active (real use). All parameters (cost-model constants, multiplier 2.0, trigger 2, gate 20 and 100) are frozen at their Phase 3B values; `src/approx.cpp` was not changed between tuning and the blind run except for the timing harness.
-
-**Blind table.** *B. fragilis* was never used to tune or fit anything in phases 3A and 3B (nor the cost model, which was blind-tested on it in phase 2). Its table is the second one below; the *E. coli* 536 table, on which the constants were tuned, is the first, for comparison. Absolute Myers times (about 73 to 76 ms per 100 bp read, 143 to 149 ms for 200 bp) are in the footnote under each table.
-
-### E. coli 536 (tuned on)
-
-| m, k | lv | filter_fa | filter_fa_wg | filter_s2 | filter_s3 | filter_fs2 | filter_fs3 | filter_auto |
-|---|---|---|---|---|---|---|---|---|
-| m=100, k=1 | 4.77 (4.19 to 5.08) | 3255.87 (2731.87 to 3913.64) | 14528.17 (3393.35 to 17415.52) | 18739.68 (14053.15 to 23584.50) | 28183.59 (17484.64 to 33262.26) | 14982.14 (4831.52 to 16945.92) | 15299.17 (5593.87 to 17269.58) | 14912.26 (6632.59 to 18412.06) |
-| m=100, k=2 | 3.29 (2.91 to 3.48) | 3119.89 (2589.67 to 3558.50) | 13157.36 (3217.36 to 15120.04) | 17476.10 (13050.25 to 21811.27) | 23533.13 (15144.53 to 30060.69) | 13612.66 (4833.26 to 16064.11) | 14134.54 (5296.19 to 16236.28) | 13006.41 (6180.63 to 15811.20) |
-| m=100, k=4 | 1.97 (1.68 to 2.11) | 2884.35 (2324.68 to 3334.61) | 9957.87 (3054.57 to 11613.91) | 16785.53 (13211.45 to 20915.73) | 21289.77 (14466.09 to 27001.20) | 12234.35 (4642.25 to 14124.55) | 12796.68 (5027.48 to 14592.29) | 10566.01 (5520.52 to 13097.95) |
-| m=100, k=6 | 1.44 (1.31 to 1.52) | 2442.39 (1884.90 to 2913.52) | 7408.80 (2640.53 to 10036.40) | 14722.60 (11283.06 to 18989.73) | 17680.79 (9856.09 to 24040.10) | 10873.16 (4275.90 to 12588.83) | 10315.45 (4851.62 to 12034.67) | 7900.01 (3517.72 to 10995.95) |
-| m=100, k=8 | 1.12 (1.03 to 1.18) | 1357.61 (946.17 to 1825.37) | 2601.81 (1282.71 to 4199.39) | 5524.92 (3229.52 to 9869.63) | 3102.63 (1025.97 to 4664.66) | 3960.20 (2906.60 to 5132.30) | 2931.10 (2153.23 to 3581.63) | 3293.55 (1781.88 to 4001.68) |
-| m=100, k=10 | 0.92 (0.85 to 0.97) | 156.53 (95.65 to 230.47) | 178.29 (105.35 to 284.91) | 918.80 (616.46 to 1277.74) | 237.62 (188.03 to 305.33) | 1414.22 (984.85 to 2001.90) | 653.38 (433.78 to 940.17) | 1100.00 (768.10 to 1461.80) |
-| m=100, k=12 | 0.78 (0.72 to 0.82) | 19.83 (14.24 to 32.48) | 20.96 (14.91 to 34.83) | 141.68 (26.26 to 193.68) | 46.77 (37.39 to 58.33) | 214.90 (129.70 to 393.63) | 134.44 (90.47 to 204.84) | 205.94 (127.37 to 355.98) |
-| m=100, k=15 | 0.64 (0.56 to 0.68) | 2.87 (2.13 to 3.92) | 2.89 (2.08 to 4.03) | 2.12 (1.73 to 16.10) | 5.61 (4.46 to 6.79) | 13.28 (7.12 to 23.89) | 19.49 (11.26 to 30.04) | 18.99 (11.16 to 29.33) |
-| m=100, k=17 | 0.58 (0.52 to 0.63) | 1.37 (1.15 to 1.73) | 1.35 (1.14 to 1.75) | 1.60 (1.32 to 2.03) | 3.42 (0.64 to 4.65) | 2.96 (1.84 to 4.98) | 5.03 (2.54 to 8.14) | 5.08 (2.54 to 8.69) |
-| m=100, k=20 | 0.49 (0.42 to 0.51) | 1.00 (0.93 to 1.06) | 1.00 (0.90 to 1.05) | 0.64 (0.57 to 0.68) | 0.62 (0.56 to 0.68) | 0.82 (0.74 to 1.05) | 0.93 (0.69 to 1.22) | 0.99 (0.93 to 1.15) |
-| m=100, k=25 | 0.40 (0.36 to 0.42) | 1.00 (0.91 to 1.07) | 1.00 (0.95 to 1.07) | 1.00 (0.86 to 1.07) | 1.00 (0.89 to 1.07) | 0.48 (0.38 to 0.57) | 0.43 (0.35 to 0.59) | 1.00 (0.95 to 1.04) |
-| m=200, k=30 | 0.64 (0.59 to 0.73) | 1.51 (1.28 to 1.89) | 1.52 (1.25 to 1.84) | 2.31 (1.98 to 2.94) | 8.57 (1.07 to 12.15) | 4.67 (2.99 to 8.33) | 16.24 (8.86 to 33.47) | 16.12 (8.93 to 32.72) |
-| m=200, k=40 | 0.50 (0.43 to 0.53) | 1.00 (0.94 to 1.07) | 1.00 (0.94 to 1.07) | 0.63 (0.57 to 0.69) | 0.62 (0.56 to 0.68) | 0.84 (0.75 to 0.91) | 0.81 (0.72 to 0.88) | 0.99 (0.95 to 1.03) |
-
-Median absolute time of the Myers scan (ms per read, for scale only): m=100,k=1: 73.3, m=100,k=2: 73.1, m=100,k=4: 73.8, m=100,k=6: 73.0, m=100,k=8: 72.5, m=100,k=10: 72.6, m=100,k=12: 72.4, m=100,k=15: 73.1, m=100,k=17: 74.2, m=100,k=20: 72.6, m=100,k=25: 72.8, m=200,k=30: 143.2, m=200,k=40: 142.0.
-
-
-### B. fragilis (BLIND)
-
-| m, k | lv | filter_fa | filter_fa_wg | filter_s2 | filter_s3 | filter_fs2 | filter_fs3 | filter_auto |
-|---|---|---|---|---|---|---|---|---|
-| m=100, k=1 | 3.87 (3.63 to 4.06) | 3425.61 (2935.45 to 4058.76) | 15632.46 (3582.99 to 18090.93) | 18940.79 (14951.73 to 25672.48) | 29792.62 (17062.28 to 35255.43) | 15676.60 (5418.81 to 17720.12) | 15964.03 (5901.28 to 17771.80) | 15671.21 (8833.19 to 18752.85) |
-| m=100, k=2 | 3.22 (2.60 to 3.45) | 3255.75 (2696.44 to 3674.40) | 13004.10 (3160.73 to 15592.98) | 19405.79 (14935.31 to 23564.15) | 25628.76 (16758.20 to 31823.11) | 14300.31 (5151.08 to 16721.79) | 14616.97 (5660.86 to 16523.94) | 13739.15 (6275.14 to 15591.22) |
-| m=100, k=4 | 1.97 (1.79 to 2.09) | 2899.00 (2311.77 to 3260.95) | 10824.71 (2982.79 to 12603.41) | 16614.29 (12440.47 to 20445.19) | 21994.04 (15082.92 to 27504.10) | 12838.53 (4763.17 to 14247.15) | 13281.28 (5000.58 to 14874.62) | 11647.98 (6324.37 to 13190.82) |
-| m=100, k=6 | 1.41 (1.25 to 1.52) | 2471.41 (1907.23 to 2886.14) | 7385.06 (2626.91 to 9054.73) | 15839.46 (11924.67 to 19780.47) | 19409.78 (10133.08 to 24268.84) | 10320.82 (4568.66 to 12989.20) | 10216.91 (4778.08 to 12671.51) | 7637.50 (3882.82 to 10310.60) |
-| m=100, k=8 | 1.15 (0.98 to 1.21) | 1277.82 (793.04 to 1767.88) | 2357.87 (1080.42 to 4180.39) | 6559.13 (3203.73 to 10742.40) | 3593.68 (1082.40 to 5404.12) | 3899.73 (2680.48 to 5331.92) | 2988.32 (1893.22 to 3894.99) | 3308.86 (1906.36 to 4035.70) |
-| m=100, k=10 | 0.91 (0.79 to 0.98) | 146.16 (90.34 to 258.03) | 167.01 (100.89 to 307.66) | 914.59 (517.18 to 1186.30) | 241.57 (184.13 to 387.71) | 1386.02 (842.01 to 2027.31) | 645.66 (389.99 to 1019.85) | 1030.38 (638.76 to 1582.23) |
-| m=100, k=12 | 0.77 (0.68 to 0.83) | 20.78 (13.86 to 30.50) | 22.26 (14.51 to 31.97) | 147.26 (27.74 to 203.79) | 49.72 (36.18 to 65.00) | 224.62 (139.39 to 326.53) | 134.35 (90.38 to 196.87) | 207.80 (127.31 to 308.27) |
-| m=100, k=15 | 0.63 (0.58 to 0.67) | 2.74 (2.17 to 4.12) | 2.72 (2.15 to 4.18) | 2.13 (1.61 to 14.05) | 5.32 (3.72 to 6.66) | 11.12 (7.64 to 21.62) | 17.30 (11.93 to 32.01) | 17.17 (12.16 to 29.14) |
-| m=100, k=17 | 0.57 (0.51 to 0.61) | 1.31 (1.07 to 1.60) | 1.33 (1.08 to 1.61) | 1.59 (1.24 to 2.07) | 2.67 (0.63 to 4.64) | 2.65 (1.72 to 4.32) | 4.26 (2.49 to 7.72) | 4.20 (2.44 to 7.71) |
-| m=100, k=20 | 0.47 (0.41 to 0.51) | 1.00 (0.90 to 1.12) | 1.00 (0.90 to 1.11) | 0.63 (0.57 to 0.72) | 0.62 (0.55 to 0.70) | 0.79 (0.69 to 1.01) | 0.75 (0.63 to 1.16) | 0.99 (0.94 to 1.16) |
-| m=100, k=25 | 0.39 (0.34 to 0.43) | 1.00 (0.89 to 1.13) | 1.00 (0.92 to 1.14) | 1.00 (0.87 to 1.12) | 1.00 (0.87 to 1.13) | 0.46 (0.38 to 0.54) | 0.41 (0.34 to 0.50) | 1.00 (0.94 to 1.06) |
-| m=200, k=30 | 0.65 (0.54 to 0.71) | 1.45 (1.23 to 1.78) | 1.44 (1.22 to 1.74) | 2.26 (1.79 to 2.77) | 8.49 (1.00 to 13.63) | 4.62 (2.69 to 6.23) | 15.18 (7.31 to 23.77) | 15.07 (7.47 to 22.16) |
-| m=200, k=40 | 0.49 (0.40 to 0.54) | 1.00 (0.90 to 1.14) | 1.00 (0.88 to 1.15) | 0.63 (0.55 to 0.81) | 0.62 (0.54 to 0.71) | 0.84 (0.72 to 0.97) | 0.81 (0.72 to 0.93) | 0.99 (0.91 to 1.07) |
-
-Median absolute time of the Myers scan (ms per read, for scale only): m=100,k=1: 76.0, m=100,k=2: 76.7, m=100,k=4: 75.3, m=100,k=6: 76.0, m=100,k=8: 76.1, m=100,k=10: 77.3, m=100,k=12: 75.9, m=100,k=15: 76.3, m=100,k=17: 75.8, m=100,k=20: 76.6, m=100,k=25: 76.0, m=200,k=30: 149.8, m=200,k=40: 150.0.
-
-**What the blind table shows.** The ranking and the crossovers are the same on both texts, and the numbers agree to within about 15% everywhere except the highest-variance cells (the 10th percentile of the 3-hit filters at k = 8 to 17 differs by up to 2x between texts). Nothing got worse on the blind text than on the tuning text in a way that changes a conclusion: for example `filter_fs2` at k = 10 is 1,414x over Myers on *E. coli* and 1,386x on *B. fragilis*, `filter_fs3` at k = 15 is 19.5x and 17.3x, at k = 17 it is 5.03x and 4.26x, at k = 20 every filter is at or below the scan on both (0.4x to 1.0x). `filter_auto` is 0.40 to 1.00 of the best fixed method of the table on *B. fragilis* (0.44 to 1.00 on *E. coli*): about 0.4 to 0.55 for k <= 8, 0.76 to 0.77 at k = 10 (two extra seed selections and a prediction, a few tens of microseconds on queries that take 0.05 ms), and 0.95 or better from k = 12. It is never slower than the scan at k = 20 and above (0.99 to 1.00). Landau-Vishkin beats the Myers scan only at small k (4.8x at k = 1 on *E. coli* and 3.9x on *B. fragilis*, 2.0x at k = 4, 1.1x to 1.2x at k = 8; 0.9x at k = 10 and 0.4x at k = 25), and is thousands of times slower than any filter at those k, since it still scans the whole text. The gate on *B. fragilis* flagged no read (the ratio of the largest seed count to its random expectation has median 2.7 to 5.0, 90th percentile 3.9 to 9.2, maximum 32.5 at k = 6 where seeds are 14 bases long):
-
-| k | reads flagged | ratio median | ratio p90 | ratio max |
-|---|---|---|---|---|
-| 6 | 0 of 200 | 5.0 | 9.2 | 32.5 |
-| 10 | 0 of 200 | 3.3 | 5.4 | 13.0 |
-| 15 | 0 of 200 | 2.7 | 3.9 | 4.5 |
-
-so on this natural genome `filter_fa_wg` behaves as `filter_fa` (`filter_fa_wg` against `filter_fa` in the tables above: 2.72 against 2.75 at k = 15 and 1.33 against 1.31 at k = 17, but 167 against 146 at k = 10, where the binned window estimate costs about 15%, so the gate does not remove all of the overhead). Where the results disagree between the two texts or with the plan of this pass: the planned decision-table rows were written before this table existed; the rows in Section 5.2 follow the measurements.
-
-## 5. Conclusion
-
-**Correctness.** Every exact method (Sellers, banded, Myers, Myers with pruning, Landau-Vishkin, `filter`, `filter_fa`, `filter_fa_w`, `filter_fa_wg`, `filter_s1` to `filter_s3`, `filter_fs2`, `filter_fs3`, `filter_auto`) returns the same match sets as Sellers in all of these checks: 300 randomised cases (uniform, low-complexity, indel-heavy, clustered, N-containing), run once with the cost-model fallback and once with it disabled; 576 comparisons on real data (prefixes of *E. coli* 536 and *B. fragilis*, SARS-CoV-2, phage lambda, human mtDNA, and real homologous mt_orang segments against mt_human); 320 comparisons in a dedicated test of block pruning (m up to 600, k up to 200); every row of the benchmark (the run aborts on any mismatch; the 100-read headline experiments are checked read by read on both bacterial genomes); and the whole divergence experiment. The BLAST-style heuristics are always a subset of the true matches. Edlib is checked differently, because it answers a different question: HW mode returns the minimum distance and only the ends at that minimum. It equals our `myers_best` (minimum-distance ends) in all 1,398 pattern checks, and for T = TTACGTTTTACGATT, P = ACGT, k = 1 it reports the single end {5} while the all-within-k set is {4, 5, 6, 11, 12, 13}. Edlib and WFA2 timings are therefore "best match per read", not all matches within k. Alignment output was validated separately on 3,200 reads (below).
-
-**What won where (*E. coli* 536, m = 100, time per query in ms).** Myers, `filter` and `filter_fa` are medians [10th, 90th percentile] over 100 reads; the other columns are means over 20 reads (Sellers 1, WFA2 5).
-
-| k (k/m) | Sellers | Banded | Myers | Edlib (best/read) | WFA2 (best/read) | `filter` | `filter_fa` | one-hit / two-hit heuristic (read recall) |
-|---|---|---|---|---|---|---|---|---|
-| 2 (0.02) | 943 | 94 | 73.0 [67.9, 87.4] | 44 | 92 | **0.017** [0.009, 0.035] | 0.034 [0.031, 0.047] | 0.077 / 0.032 (1.00 / 1.00) |
-| 8 (0.08) | 845 | 208 | 71.0 [67.8, 77.4] | 45 | 254 | **0.040** [0.023, 0.126] | 0.084 [0.067, 0.114] | 0.073 / 0.030 (1.00 / 0.95) |
-| 10 (0.10) | 854 | 242 | 71.3 [67.7, 88.6] | 37 | 313 | 0.631 [0.412, 2.309] | **0.455** [0.271, 0.693] | 0.080 / 0.037 (1.00 / 0.95) |
-| 14 (0.14) | 875 | 314 | 69.3 [66.2, 75.5] | 50 | 453 | 32.4 [22.6, 39.1] | **14.0** [10.5, 20.0] | 0.079 / 0.032 (1.00 / 0.70) |
-| 20 (0.20) | 852 | 413 | 68.9 [66.5, 71.9] | 38 | 564 | 71.3 [69.2, 78.8] | 72.6 [69.3, 77.1] | 0.052 / 0.022 (0.95 / 0.40) |
-| 30 (0.30) | 887 | 593 | 70.3 [66.8, 77.7] | 56 | 766 | 70.9 [68.4, 73.0] | 71.6 [68.2, 82.9] | 0.044 / 0.023 (0.30 / 0.00) |
-
-- Bit-parallelism is the best exact scan: Myers is about 12 times faster than Sellers at m = 100 and flat in k; banded is slower than Myers from k = 2 despite updating far fewer cells, and the Landau-Vishkin diagonal algorithm with direct character extension was slower still in phase 2 (1.3x to 17x slower than Myers); the phase 3A version with packed text, blocking and AVX-512 is 5x to 6x faster and beats plain Myers for k up to about 8 at m = 100 (Section 4.9). Block pruning makes Myers 1.35x to 4.7x faster when the read spans several 64-row blocks and k is small against m, and slower (0.73x to 0.82x) for a single block or when most blocks stay active; Edlib remains 1.3x to 1.8x faster than pruned Myers (Section 4.6).
-- With an index, the exact filters are 1,800 to 10,000 times faster than a Myers scan up to k/m = 0.08 (`filter` medians 0.007 to 0.040 ms against about 71 ms) and still about 110 times faster (`filter`) and 160 times (`filter_fa`) at k/m = 0.10. The **crossover with a full scan is at k/m of about 0.17**: measured 0.168 for `filter` and 0.187 for `filter_fa`, predicted by the cost model at 0.169 and 0.191, and predicted blind on a second genome (*B. fragilis*) at 0.169 against 0.168 measured. The same crossover follows from the expected-case analysis alone (k = 17.0, Section 4.1). Beyond it the cost-model fallback keeps the filters at scan speed (median 71 ms at k = 20 and 30). Search time is nearly flat in n (0.006 ms at 250 kbp to 0.034 ms at 4.9 Mbp for `filter`, k = 5), against linear growth for the scans.
-- **Where `filter_fa` wins and loses** (pure-filter medians, Section 4.4). It **loses for k <= 8 at m = 100** (k/m <= 0.08; 0.33x to 0.79x of the equal split's speed, that is 1.3 to 3.0 times slower) and for reads of 100 bp or less at 5% error, because seed selection (about 0.02 to 0.05 ms) costs more than the verification it saves. It **wins for k from 10 to 30 at m = 100** (k/m from 0.10 to 0.30; 1.36x to 2.64x faster; 1.45x at k = 10, 2.64x at k = 12, 1.48x at k = 15) and for **reads of 200 bp or more at 5% error** (k >= 10; 1.6x at m = 200, 2.9x at m = 400, 7.2x at m = 800). It has fewer hits than the equal split at every k tested. The crossover with Myers moves from k/m = 0.168 to 0.187, but above both the fallback decides and the two filters equal the scan. It also has a limitation that comes from minimising hits instead of verified length: in the `lowcomplex_edge` stress case at k = 10 it has 4.5 times fewer hits than the equal split but 2.9 times more merged windows and 2.6 times more verified bases, and is twice as slow (3.25 against 1.63 ms), because the equal split's hits cluster and merge in a repeat while the rarer seeds are scattered. A window-aware objective (`filter_fa_w`) removes the extra verification (42,867 bases against 193,687) but its seed selection costs 7.8 ms, so it did not help (Section 4.4).
-- **Generalised pigeonhole (phase 3B, Section 4.10).** Requiring s = 2 or 3 seed hits inside a band of k diagonals (k + s seeds; Theorem 12) makes the filter 6x to 15x faster than `filter_fa` at 10 to 17% error and 4.6x to 230x faster than a Myers scan on *E. coli* (k = 12: 0.329 against 75.3 ms; k = 17: 17.3 against 79.6 ms), and 8x faster than Myers on the real orangutan to human segments at k = 15; it does not help at 20% error and above, so the crossover with a scan stays near k/m = 0.19 to 0.20. With these options in `filter_auto`, 3x to 10x faster than before in that range. The gated and binned window objective is safe and cheap but helps only one of the failing stress cases and stays out of `filter_auto`.
-- `filter_auto` (Section 2.12) chooses per query between the equal split, the frequency-aware split, the 2-hit and 3-hit filters and a scan with the cost model. The phase-3A rule (without the s-hit options) was compared with the better of `filter` and `filter_fa` in one non-interleaved run and looked within 5% of it in 28 of 30 settings, but that margin is smaller than the VM's run-to-run noise (40% to 60%), so it is **not** claimed any more. The interleaved measurement of Section 4.11 (60 reads, 3 repeats, ratios to Myers, identical on the tuning text and the blind text) says: `filter_auto` pays off from k = 12 upwards (0.95 to 1.00 of the best fixed method; never slower than the scan from k = 20); for k <= 10 a fixed s-hit filter is better than `filter_auto` by 1.3x to 2.5x (`filter_s3` at k <= 6, `filter_s2` at k = 8, `filter_fs2` at k = 10), because the cost of choosing is a visible share of a 0.003 to 0.05 ms query; and it is 2.4x to 7x faster than `filter_fa` for k <= 10 on *E. coli*. It is clearly faster than both fixed filters on the low-complexity stress case (Section 4.9).
-- The index pays for itself after about 2 queries for k <= 13 and about 3.3 for k = 14 and 15; for the equal split it never pays at k >= 17 (Section 4.2).
-- Edlib is 1.3 to 1.9 times as fast as our unpruned Myers (37 to 56 ms against about 71 ms), and WFA2 through Python is slow for scanning a genome (67 to 766 ms per query, growing with k, consistent with its O(ns) cost); both answer the best-match question only.
-- **Results by dataset** (m = 100, k = 5 and 10; means over 20 reads): the same ordering holds on every genome. Per-query times for Myers / Edlib / `filter` / `filter_fa` at k = 5 are 75.6 / 37.4 / 0.026 / 0.047 ms on *E. coli* 536, 0.51 / 0.27 / 0.003 / 0.034 ms on SARS-CoV-2, 0.68 / 0.36 / 0.004 / 0.034 ms on phage lambda and 0.24 / 0.21 / 0.004 / 0.037 ms on human mtDNA. On the small genomes `filter_fa` is slower than `filter` at both k, because selection costs more than the tiny verification it saves, and the index build (about 20 ms) is dominated by clearing the 16.8 MB table. Two-hit read recall is 1.00 at k = 5 and 0.95 at k = 10 on all four genomes; one-hit recall is 1.00.
-
-### 5.0 Real homologous sequences (human against orangutan mtDNA)
-
-Random 100 bp segments of the orangutan mitochondrial genome were matched against the human one (200 segments), and the reverse (`scripts/real_divergence.py`). These are real homologs, so the edits are real evolutionary differences, not simulated ones. The true best edit distance (Myers, verified with Sellers for every segment: a match at k = d and none at k = d - 1) has a median of 15 (15% of m) and a 10th to 90th percentile range of 8 to 22 (8% to 22%) from orangutan to human (range 1 to 39, no exact match), and 8 to 24 in the other direction (range 0 to 40, one exact match). For 200 bp segments the median is 29 (14.5% of m, 10th to 90th percentile 20 to 41).
-
-| k (m = 100) | segments with d* <= k (o->h / h->o) | filter hits per segment (equal / fa) | one-hit read recall (o->h / h->o) | two-hit read recall (o->h / h->o) |
-|---|---|---|---|---|
-| 10 | 39 / 43 | 5 / 2 | 1.00 / 1.00 | 1.00 / 1.00 |
-| 15 | 110 / 111 | 135 / 73 | 1.00 / 1.00 | 0.96 / 0.99 |
-| 20 | 177 / 163 | 2,082 / 680 | 0.99 / 1.00 | 0.85 / 0.86 |
-| 30 | 195 / 188 | 10,743 / 7,682 | 0.98 / 0.99 | 0.80 / 0.78 |
-| 40 | 200 / 200 | 51,031 / 28,845 | 0.96 / 0.95 | 0.79 / 0.73 |
-
-(Recall is over the segments that have a true match within k. End-position recall at k = 40 is 0.77 for one-hit and 0.65 / 0.63 for two-hit.) The real divergence sits right at the filter's crossover: at the median distance (k = 15) a 100 bp segment already produces 135 seed hits on a 16.5 kbp text and the filter is only 1.5x faster than Myers (0.154 against 0.233 ms), and from k = 20 on the cost model sends every segment to a full scan. The simulated-edit results carry over: one-hit seeding keeps recall of at least 0.95 up to k = 40, while the two-hit trigger loses 20% to 27% of the segments once k reaches 30 to 40. For 200 bp segments (median distance 29) both heuristics keep recall of at least 0.99 at every k tested up to 40, because longer segments have longer clean stretches to seed on. All exact methods agree with Sellers on every segment and k.
-
-**Heuristic recall under stress** (*E. coli* 536 with about 1% injected microsatellite and homopolymer arrays, 20 reads per cell, so recall moves in steps of 0.05; read recall is the fraction of reads for which at least one true match is reported):
-
-| scenario | k = 6 one-hit / two-hit | k = 10 one-hit / two-hit | k = 15 one-hit / two-hit |
-|---|---|---|---|
-| uniform | 1.00 / 1.00 | 1.00 / 0.95 | 1.00 / 0.45 |
-| clustered | 1.00 / 1.00 | 1.00 / 1.00 | 1.00 / 1.00 |
-| indel-heavy (90% indels) | 1.00 / 1.00 | 1.00 / 0.90 | 0.95 / 0.60 |
-| low-complexity edge | 1.00 / 1.00 | 1.00 / 0.95 | 1.00 / 0.65 |
-| low-complexity inside | 1.00 / 1.00 | 1.00 / 0.95 | 1.00 / 0.75 |
-
-Clustered edits are the easiest case for a seed-based method, because they leave long clean stretches. The one-hit heuristic loses reads only under indel-heavy edits at k = 15 (0.95), and loses end positions inside low-complexity arrays (end recall 0.91 at k = 15, where one read can have thousands of matches). The two-hit trigger is much more fragile: recall falls to 0.45 to 0.75 at k = 15 in every scenario except clustered. Exact methods lose nothing in any scenario, and the filters get slower where hits pile up in repeats (`lowcomplex_inside`: 17,000 to 18,000 equal-split hits per read at k = 6 and 10). At the highest error rates the heuristic also collapses on uniform reads (k = 30: one-hit 0.30, two-hit 0.00). The heuristic's speed (0.02 to 0.08 ms) is similar to the filters' where the filters work, and it does not degrade at high error, which is exactly where its recall fails.
-
-### 5.0b Applications
-
-The k-differences problem appears wherever a short string must be located in a long one despite errors. Typical settings, with the method this project suggests for each:
-
-- **Short-read mapping and variant calling.** A sequencer produces many short, slightly wrong copies of pieces of a genome; mapping a read means finding where it fits within a few edits, and positions where many reads disagree with the reference are candidate variants. This is the many-queries, low-error regime in which the index filters win (Section 5.2); Section 5.1 shows the read-to-alignment output.
-- **Primer and probe search.** A PCR primer or hybridisation probe must bind its target and nothing else, so one searches a genome for near copies within a few mismatches or gaps to find unintended binding sites; k is small and the sequence is short.
-- **CRISPR off-target search.** A guide of about twenty bases can cut sites that differ from it by a few substitutions or small gaps; listing every genome position within k edits of the guide gives the candidate off-target sites. The pattern is short, so k/m is large for even a few edits and the scan or Landau-Vishkin regime is relevant.
-- **Metagenomics and species identification.** Reads from a mixed sample are compared with reference genomes while tolerating strain differences, to see which organisms are present. At 10% to 15% divergence, as in our human against orangutan test, filtering loses most of its advantage (Section 5.0), which matches the known difficulty of comparing distant species.
-- **Barcode and UMI matching.** Short sample or molecule barcodes are changed by sequencing errors; assigning a read to the nearest barcode within k edits recovers it.
-- **Beyond DNA.** The same algorithms find dictionary words close to a misspelled word, near-duplicate passages in plagiarism and duplicate detection, and wrongly recognised words after optical character recognition; with a larger alphabet exact seeds are more selective and filters work better.
-
-### 5.1 Applications: mapping reads with alignment output
-
-The exact filter finds every end position with distance at most k; a traceback over the verified windows (Section 2.12) turns the best of them into an alignment. `scripts/map_reads GENOME READS -k K` maps a FASTA, FASTQ or one-per-line reads file against a genome and writes one best alignment per read (minimum edit distance, ties broken by the leftmost end) as TSV or SAM-like text; reads with no alignment within k are reported as unmapped; only the forward strand is searched. It was validated on 3,200 random reads (320 texts of 200 to 20,000 bp, some with N; k from 0 to 12; uniform, indel-heavy and clustered edits; 2,298 mapped and 902 unmapped) with 0 failures: the reported distance equals the Sellers minimum (Sellers at k = d matches and at k = d - 1 does not), the CIGAR edit count (X + I + D) equals the reported distance, the CIGAR replays correctly against the read and the text, and the end is one of Sellers' end positions.
-
-A 60 bp stretch of E. coli 536 (positions 2000000..2000060) was copied and given 2 substitutions, 1 insertion and 1 deletion (4 edits), then mapped with k = 8:
-
-```
-scripts/map_reads data/raw/ecoli536.fa reads.fa -k 8
-```
-TSV output:
-```
-read	length	status	distance	start	end	strand	cigar	best_ends
-example_read	60	mapped	4	2000000	2000060	+	10=1X15=1I14=1D12=1X6=	10
-unmappable_read	60	unmapped	*	*	*	*	*	0
-```
-Alignment reconstructed from the CIGAR (reference on top, read below; `x` mismatch, `-` gap):
-```
-ATATGGCAAAAGCGCTCAGGGCGGGA-TCATCAACATCGTCACCCAGCAGCCGGACAGCAC
-||||||||||x||||||||||||||| |||||||||||||| ||||||||||||x||||||
-ATATGGCAAACGCGCTCAGGGCGGGAGTCATCAACATCGTC-CCCAGCAGCCGGTCAGCAC
-```
-The reported distance is 4, equal to the number of X, I and D operations in `10=1X15=1I14=1D12=1X6=`, and the start (2000000) matches the planted position (2000000). The second read has no alignment within k = 8 and is reported as unmapped. SAM-like output (`--format sam`):
-```
-@HD	VN:1.6	SO:unsorted
-@SQ	SN:gi|110640213|ref|NC_008253.1|	LN:4938920
-@PG	ID:map_reads	PN:map_reads
-example_read	0	gi|110640213|ref|NC_008253.1|	2000001	255	10=1X15=1I14=1D12=1X6=	*	0	0	ATATGGCAAACGCGCTCAGGGCGGGAGTCATCAACATCGTCCCCAGCAGCCGGTCAGCAC	*	NM:i:4
-unmappable_read	4	*	0	0	*	*	0	0	ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT	*
-```
-
-
-### 5.2 What the comparison shows
-
-Decision table (m = 100 unless stated; speedups are medians over Myers from Section 4.11, *E. coli* 536 / *B. fragilis* blind; the two texts agree within about 15% in every row, so no row has two ranges):
-
-| Situation | Best method | Why |
-|---|---|---|
-| One or a few queries, or no index allowed | Myers scan (single-word loop for m <= 64); Landau-Vishkin for k <= 8 | The scan costs the same for any k (73 to 76 ms per read on 4.6 to 5.2 Mb). The AVX-512 `lv` beats it by 3.9x to 4.8x at k = 1, 2.0x at k = 4, 1.1x to 1.2x at k = 8, and loses from k = 10 (0.9x). The advantage depends on AVX-512; without it the scalar `lv` is slower. |
-| Many queries, k <= 8 (error up to 8%) | Any pigeonhole filter, best `filter_s3` (k <= 6) or `filter_s2` (k = 8); `filter_auto` is within 0.4 to 0.6 of the best | Seeds are 12 to 50 bases, so hits are rare and 2 or 3 required hits cut the windows to about one per read: 18,000x to 30,000x at k = 1 to 6 (15,000x to 30,000x on the blind text), 5,200x / 6,500x at k = 8. `filter_auto` pays a few tens of microseconds to choose, which matters when a query takes 0.003 to 0.05 ms. |
-| Many queries, error 10 to 12% (k = 10, 12) | `filter_fs2` (2 hits, frequency-aware seeds) | 1,414x / 1,386x at k = 10 and 215x / 225x at k = 12; `filter_auto` reaches 0.76 to 0.96 of it. `filter_fs3` is 2x slower at k = 10 (it needs 13 shorter seeds, more hits). |
-| Many queries, error 15 to 17% (k = 15, 17; m = 200, k = 30) | `filter_fs3` (3 hits, frequency-aware seeds); `filter_auto` equals it | 19.5x / 17.3x at k = 15, 5.03x / 4.26x at k = 17, 16.2x / 15.2x at m = 200, k = 30 (each 0.97 to 0.99 for `filter_auto`). The plain `filter_fa` is only 1.3x to 2.9x here. |
-| Error 20% and above (k >= 20 at m = 100, k >= 40 at m = 200) | The Myers scan | All filters are at or below 1.0x (0.4x to 1.0x): the seeds are 4 to 5 bases and occur everywhere, so even 2 or 3 hits in a band cover the whole text. `filter_auto` falls back to the scan (0.99 to 1.00); the s-hit filters used alone lose 1.2x to 2.5x. Crossover with the scan at k/m of about 0.17 to 0.20 on both texts, unchanged by the generalised filters. |
-| Repeat-heavy or low-complexity reads | `filter_auto` (occupancy cost model) | It prices the windows actually produced, so it picks the scan or the better seeds per read. The gate flags such reads (28 to 30 of 30 in the injected stress cases, 0 of 200 natural *B. fragilis* reads), but the window objective it enables helped only one of the four stress cases (Section 4.10) and is not used by `filter_auto`. |
-| Real homologous sequences (mt orangutan against human, median distance 15%) | `filter_fs3` at k = 15 (8x over Myers); the scan at k >= 20 | The real divergence sits at the crossover; Section 5.0. |
-| Only the best match per read is needed | Edlib or WFA2 (best-match semantics) | They answer a different question (Section 2.8); not compared on the all-matches task. |
-| Missing some matches is acceptable | One-hit seed-and-extend heuristic (`blast1`) up to about 15% divergence; avoid the two-hit one above 6 to 8% | One-hit recall is 1.00 up to k = 15 and 0.95 to 0.99 at k = 20 to 40; two-hit recall is 0.96 to 0.99 at k = 15 but 0.73 to 0.86 from k = 20, and both can lose indel-heavy reads (Section 5.0). It is not exact, it uses hand-picked constants, and it is not blastn. |
-
-### 5.3 Limitations
-
-- **Single machine, single thread.** The headline experiment (k sweep at m = 100) uses 100 reads per setting and reports medians with 10th to 90th percentile ranges; every other experiment averages 20 reads (Sellers 1, WFA2 5) in a single run, with no repetitions or confidence intervals, so differences under about 10% there should not be read as real. Absolute times drift on this shared VM between runs (the Myers scan took 52 ms in an earlier run and 71 ms in the final one); ratios are stable. Timings are query time after the index is built; Edlib and WFA2 include Python call overhead (about 0.1 ms).
-- **Simulated reads, except one experiment.** Reads carry exactly k random edits (uniform, 90% indels, or clustered), never real sequencer errors. The only real divergence is human against orangutan mtDNA on two 16.5 kbp genomes, with 100 and 200 bp segments and the forward strand only; no real sequencing reads were used.
-- **Genome scale.** The index is a fixed 11-mer table. For *E. coli* (4.9 Mbp) an 11-mer occurs about once by chance; for a human-size genome it would occur hundreds of times, so the filters would lose selectivity much earlier. Longer seeds need a suffix array or FM-index (not implemented). Behaviour on large or highly repetitive genomes is untested. The index also costs about 55 MB working memory here against a few kilobytes for a scan.
-- **Dataset naming.** The main genome is *E. coli* 536, not K-12 MG1655, which no reachable source provided. *B. fragilis* is used only for the blind cost-model test. The other genomes are small.
-- **Cost model.** Constants are machine specific, fitted by NNLS on a synthetic genome, and the model assumes uniformly placed hits. Only the *B. fragilis* row of Section 4.3 is blind; the *E. coli* row is semi-blind (the calibration range was widened after a first fit failed on that text); the synthetic row is fitted. It was not tested on other CPUs. The window and base-count terms are collinear, so their individual values are poorly determined, and the constants shift with the speed of the VM.
-- **Minimising hits is not minimising verified length.** `filter_fa` minimises seed hits (Lemma 6), only a proxy for verification cost. In the `lowcomplex_edge` case at k = 10 it verifies 2.6 times more bases than the equal split and is twice as slow. The window-aware variant `filter_fa_w` fixes the verified length but not the time, because its seed selection reads every candidate seed's hit list (Section 4.4).
-- **Heuristic.** It models BLAST's seed-and-extend logic with hand-picked constants (match +2, mismatch -3, X-drop 20, HSP cutoff 34, two-hit window 40); it is not blastn. Recall numbers depend on those constants.
-- **Edlib and WFA2** answer the best-match question and are not comparable in output to the all-within-k methods; WFA2 is used through `pywfa`, scanning a whole genome, which is not its design target.
-- **Landau-Vishkin** still uses direct comparison in its worst case (long repeats): the longest-common-extension structure that gives the worst-case O(nk) bound is not implemented, and its speed (Section 4.9) needs AVX-512 (1.7x to 2.3x faster than phase 2 without it).
-- **Hardware (final pass).** One Intel Xeon VM at 2.10 GHz with AVX-512; the Landau-Vishkin ratios (3.9x to 4.8x at k = 1 down to 1.1x at k = 8) depend on AVX-512, and a machine without it takes the slower scalar path. Interleaved timing removes order effects but not VM noise; percentiles in Section 4.11 show the spread (a 10th percentile of 0.6x to 0.7x for `filter_s3` at k = 17 means some reads lose to the scan). The blind text is one genome (*B. fragilis*) and simulated reads; the claim is only that the constants fitted on *E. coli* transfer to it.
-- **Phase 3B** (generalised pigeonhole): the candidate pass sorts all hits (a few hundred thousand per read at 17 to 20% error, so it costs tens of milliseconds there), the window prediction assumes uniformly placed hits and carries an empirical multiplier fitted on *E. coli* 536, `filter_auto` pays about 10 to 30 microseconds to evaluate the s-hit options and is therefore up to 1.8x slower than the best fixed method in hindsight when a query takes under 0.3 ms, and on the 16.5 kb mt genome the model constants (fitted on 4.6 Mb texts) mis-rank the options at k = 20. Real-homolog results use one pair of genomes and 100 segments.
-- **Phase 3A measurements** are targeted quick runs, not a full benchmark; on this VM identical runs differ by 40% to 60%, so the `filter_auto` margin of 5% could not be certified for every setting, and the single-word Myers comparison uses one VM state.
-- **Mapping** searches the forward strand only, reports one alignment per read, and aligns every end of a very long cluster separately when the cluster window exceeds 40 million cells; it was validated on short texts.
-- **Banded versus Myers.** Hardware counters were unavailable (no perf, no CPU performance-monitoring device in the VM). Instruction counts are exact but come from cachegrind on a generic build, and branch mispredictions come from a simulated predictor. The explanation of why a banded cell costs about 20 instructions and a Myers cell about 1 is a hypothesis reasoned from the code (Section 4.5), not a measurement.
-- **Not implemented:** the Landau-Vishkin LCE structure, multithreading, SIMD for the Myers verification (Landau-Vishkin has an AVX-512 loop), GPU verification, FM-index search, reverse-complement mapping, graph genomes.
-
-### 5.4 Novelty statement
-This work is a comparative study of known algorithms plus a variant (`filter_fa`) that applies dynamic-programming seed selection, the idea of the Optimal Seed Solver [13], to an index of 11-mers with Myers verification and a calibrated fallback. The Landau-Vishkin algorithm, block-pruned Myers and the traceback front end are standard techniques implemented for comparison. The combination, the exactness and optimality-of-hit-count proofs written out in Section 3, the cost model with its blind test, the expected-case analysis, and the measurements are the contribution. It is not a new algorithm.
-
-## 6. Gaps and Future Directions
-
-### 6.0 Existing algorithms and attempted solutions
-
-This is a short survey in our own words; each entry says what the method does, its cost, its main limitation and whether it is implemented in this project or only described. References are numbered as in the list at the end (each was verified, `results/references_verified.md`).
-
-**Sellers' dynamic program [1] (implemented: `sellers`).** The table cell (i, j) holds the cheapest way to align the first i pattern characters to some substring of the text that ends at column j; a free first row lets a match start anywhere. Time is Theta(mn) and space O(m) with one column kept. It is always right and simple, so it is our oracle, but it is far too slow for many reads against a genome. It belongs to the family of global and local alignment recurrences of Needleman and Wunsch [18] and Smith and Waterman [19].
-
-**Ukkonen's cutoff, banded DP [2] (implemented: `banded`).** Values along a diagonal never decrease, so a cell above k can be dropped and only about k + 1 cells per column are computed: O(kn) on average, O(mn) worst case. The cutoff is data dependent and branchy; in our measurements it was slower than Myers' bit-parallel scan from k = 2 although it touches far fewer cells.
-
-**Landau-Vishkin diagonal transitions [8] (implemented: `lv`, `lv_direct`).** For every diagonal and error count it keeps the furthest row reached and slides along matching characters for free. With a constant-time longest-common-extension structure the total is O(nk) in the worst case; with direct comparison, as here, it is O(nk) expected and O(nm) worst case, and the LCE structure is not implemented. It is the fastest exact scan at very small k and slows down linearly in k.
-
-**Myers' bit-vector algorithm [3] (implemented: `myers`, `myers_pruned`).** The differences between neighbouring DP cells are stored as bits, so a column of 64 pattern rows is updated with a few word operations: O(ceil(m/w) n) time whatever k is. It is the best exact scan in our experiments. Edlib [9] is a tuned library of this algorithm with a banded cutoff (survey and baseline only).
-
-**Bit-parallel matching with errors, Wu and Manber [4] (survey only).** The pattern is kept as bit masks, one per allowed number of errors, and all k + 1 masks are updated per text character: O(k ceil(m/w) n), simple and fast for short patterns, but the cost grows with k, unlike Myers' method.
-
-**Four Russians speed-ups, Masek and Paterson [20] (survey only).** The DP table is cut into small blocks whose results are tabulated in advance, which gives roughly O(n max(1, m / log n)) time. The bound needs a finite alphabet and edit costs that are integer multiples of one number, and the gain is only a logarithmic factor, so for DNA word-level parallelism (Myers) is more useful in practice.
-
-**Filter and verify, pigeonhole filtering [4, 5, 13, 14] (implemented: `filter`, `filter_fa`, `filter_fa_w`, `filter_s2`, `filter_s3`, `filter_fs2`, `filter_fs3`, `filter_auto`).** If a pattern matches with at most k errors, at least one of any k + 1 disjoint pieces occurs exactly (Theorem 4), so an index finds the exact piece hits and only the surrounding windows are verified. Cost is an index plus work proportional to the hits, which is excellent at low error and degrades once pieces become short and hit everywhere. Navarro's survey [5] reviews the filter family. Our variants choose cut points by dynamic programming to minimise hits, the idea of the Optimal Seed Solver [13] (related to search schemes on a bidirectional index [14]), require s hits inside a band of k diagonals (Theorem 12), and choose the method per read by a cost model.
-
-**BLAST, seed and extend [6] (a simplified version is implemented: `blast1`, `blast2`).** Short exact word hits are extended without gaps until the score drops, and the best are verified. It is fast and tolerant of divergence but heuristic: true matches can be missed, and the miss rate grows with the error rate, which we measure (Section 5.0).
-
-**Index-based read mappers: BWA [17] and minimap2 [11] (survey only).** BWA searches a compressed full-text index based on the Burrows-Wheeler transform [16] by backward search that allows a limited number of mismatches and gaps, and scales to human-size genomes. Minimap2 selects minimizers [15] as seeds, chains them and then aligns, which suits long noisy reads. Both trade the guarantee of reporting every match within k for speed and memory; neither answers the all-ends k-differences question that this project's exact methods answer.
-
-**Wavefront alignment [10] and Edlib [9] (outside baselines only).** WFA computes an optimal gap-affine alignment in time proportional to the number of edits, so it is excellent for similar sequences and slow when scanning a whole genome (67 to 766 ms per query in our runs, Section 5). Both return the best alignment per read, not every end position within k, so they are compared only on "best match per read".
-
-**Hardness [7, 12].** Backurs and Indyk proved that exact edit distance cannot be computed in time O(n^(2 - epsilon)) unless the Strong Exponential Time Hypothesis fails; Equi et al. [12] prove the analogous statement for matching in graphs. Every method above therefore gets its speed from the typical case (low error, non-repetitive text), from an index, or from word-level parallelism, not from a better worst case.
-
-| Method | Time | Exact or heuristic | Best when | In this project |
-|---|---|---|---|---|
-| Sellers [1] | Theta(mn) | exact | oracle, tiny inputs | implemented |
-| Ukkonen band [2] | O(kn) expected | exact | simple code, small k | implemented |
-| Landau-Vishkin [8] | O(kn) with LCE; O(kn) expected, O(nm) worst with direct extension | exact | very small k (k <= 8 here, with AVX-512) | implemented (no LCE) |
-| Myers [3] | O(ceil(m/w) n) | exact | one-off scans, error above about 20% | implemented |
-| Wu-Manber [4] | O(k ceil(m/w) n) | exact | short patterns | survey only |
-| Four Russians [20] | about O(mn / log n) | exact | theory, rational costs | survey only |
-| Pigeonhole filters [4, 5, 13] | index plus O(hits) | exact | many queries, error up to about 17% | implemented (several variants) |
-| BLAST-style [6] | heuristic, fast | heuristic | low divergence, misses acceptable | simplified version |
-| BWA, minimap2 [11, 17] | index based | not exhaustive | genome-scale read mapping | survey only |
-| Edlib, WFA [9, 10] | tuned Myers; O(ns) | exact, best match | best alignment per read | outside baselines |
-
-
-1. **Optimal search schemes.** Equal or frequency-aware partitioning uses one split of the pattern into k+1 pieces. Search schemes over a bidirectional index split the pattern into more parts and allow errors in different places in different searches, which cuts the verified candidates further [14].
-2. **FM-index and bidirectional search.** A 4^11 table limits seeds to 11 characters and scales poorly beyond bacterial genomes. A compressed full-text index (FM-index [16]) supports arbitrary-length seeds and inexact search by backtracking, as in BWA [17]; combining our DP seed selection with FM-index counts is the natural next step.
-3. **Wavefront alignment.** WFA [10] runs in O(ns) time for score s and is exact for gap-affine alignment; here it was slow when scanning a genome (67 to 766 ms), but it is the stronger tool for verifying a candidate window, replacing Myers for long, similar sequences.
-4. **Minimizers and chaining.** Sampling seeds as minimizers [15] and chaining them, as in minimap2 [11], reduces the index and the candidate count for long noisy reads, trading away our completeness guarantee.
-5. **Faster candidate generation for the s-hit filters.** The 2-hit and 3-hit filters sort all seed hits (std::sort); a radix sort, or a per-band bitmask counter, would cut their cost at 15 to 20% error, where there are hundreds of thousands of hits, and might move the crossover with a scan; s = 4 and larger, and combining s hits with a longer seed index (FM-index), are untried.
-5b. **Faster verification.** Edlib [9], which adds a banded cutoff to Myers' algorithm, is still 1.3x to 1.8x faster than our pruned Myers, and verification dominates for k >= 10. SIMD or GPU batching of many windows is not implemented (only Landau-Vishkin has an AVX-512 loop, which made it 5x to 6x faster), nor is a worst-case O(nk) Landau-Vishkin with a longest-common-extension structure; these are the open directions on the exact side.
-6. **Long noisy reads.** At 10 to 15% error the pigeonhole pieces are 6 to 9 characters long and every filter degenerates to a scan; the real human-orangutan mtDNA divergence (median 15%) sits at that crossover. Exact methods need either fewer-but-longer seeds with error-tolerant matching, or heuristics with a measured recall.
-7. **Graphs and pangenomes.** Matching against labelled graphs has a quadratic conditional lower bound under SETH [12], so the same trade-off between exactness and speed returns in harder form.
-8. **Minimise verified length or window count, not hit count.** (Phase 3B tried it with a binned window estimate and a repeat gate: cheaper and safe, but it helps only one of the failing stress cases and `filter_auto` already covers them; the generalised pigeonhole of Section 2.14 attacks the same problem, too many candidate windows, from the other side and is the larger gain.) Lemma 6 minimises seed hits, but verification cost depends on the merged window length and count. We tested hits + lambda * windows (`filter_fa_w`): it cuts verified bases 4.5-fold in the case that motivated it, but its seed selection costs more than it saves, and capping the work removes the effect. A cheap estimate of a seed's windows (for example from precomputed repeat clusters of the index, or a sampled subset of its hit list) is needed before this objective can pay off.
-9. **Better cost models.** Our model assumes uniform hits, was fitted on one machine, its window and base terms are collinear, and the fit depends on the calibration range (Section 4.3); modelling clustered hits (repeats), fitting over the crossover region and adapting seed length per query are open improvements. The expected-case formula of Section 4.1 could replace the sampled estimate of H.
-10. **Mapping features.** Reverse-complement reads, multiple alignments per read, mapping qualities and gapped alignment with affine costs are not implemented.
-11. **Limits of this setup:** see Section 5.3 (simulated reads outside one experiment, one run per point outside the headline experiment, bacterial genome scale, single thread, no hardware counters).
-
-### Docs review log
-
-Changes made in the documentation pass (no algorithm code and no benchmark changed).
+Changes made in a line-by-line review of the proofs and complexity claims (no algorithm code and no benchmark changed).
 
 | Section | What was wrong or missing | Change |
 |---|---|---|
@@ -899,21 +1130,24 @@ Changes made in the documentation pass (no algorithm code and no benchmark chang
 | 3, Corollary 5 | window clamping at the text ends and the treatment of N in the pattern were not stated | one sentence each: windows are clamped to [0, n); a seed with N is always touched |
 | 3, Lemma 6 | base case for j > i (seeds do not fit) missing | f[j][i] = +infinity if i < j added |
 | 3, Theorem 9 | the clamp "already reached" was loosely justified; the text-end behaviour of the code (a cell whose candidate falls in column n + 1 is stored as minus infinity) contradicts "L = Lambda" on the last text column | justification via Lemma 2; text-end remark added (argument, not a full induction) |
-| 3, Corollary 5' | still said three procedures, but `filter_auto` has five since phase 3B | now five, with Corollary 12' |
+| 3, Corollary 5' | still said three procedures, but `filter_auto` has five (the s-hit options were added later) | now five, with Corollary 12' |
 | 3, Corollary 12' | ties among the largest diagonal and window clamping not mentioned | sentence added |
 | 3, Theorem 12 | no independent test of the combinatorial claim | exhaustive check added (`tests/test_pigeonhole_brute.py`, 484,805 cases, 0 failures; bound s is tight) |
-| 4, complexity table | `filter_auto` row still quoted the phase-3A "within 5%" result; s-hit filters and `filter_fa_wg` were missing | rows updated or added |
-| 4.9 and 5 | the phase-3A "within 5%" `filter_auto` claim | replaced by the interleaved result (Section 4.11) |
+| 4, complexity table | `filter_auto` row still quoted a "within 5%" result from one non-interleaved run; s-hit filters and `filter_fa_wg` were missing | rows updated or added |
+| 4.9 and 5 | the "within 5%" `filter_auto` claim from one non-interleaved run | replaced by the interleaved result (Section 4.15) |
 | References | reference 10 year; Masek and Paterson missing | "published online 2020"; reference 20 added; all twenty re-verified (`results/references_verified.md`) |
 
-Checked and found correct: Theorem 1 (Sellers) and its base cases, Lemma 2, Theorem 4 (insertion between pieces touches neither piece; window start and length), Theorem 7 (every step of the Myers invariant, including the carry chain and block carries; compared against the code's `Ph = Mv | ~(Xh | Pv)`, `Mh = Pv & Xh`, `Xh = (((Eq & Pv) + Pv) ^ Pv) | Eq`), Theorem 10, Propositions 8, 9', 10', 11 and Lemma 6'. The band tolerance of the s-hit filters is k (the code keeps hits whose diagonal differs by at most k and extends windows by k on both sides), as Theorem 12 requires. Complexity claims were checked against the table and the code: Theta(mn), O(kn) expected, Theta(ceil(m/w) n), the seed-selection cost O(m L^2 + k m L), the expected-hit formula (matched by the measurements of Section 4.1), and the Landau-Vishkin bounds (O(nk) expected and O(nm) worst case with direct extension; O(nk) worst case would need the LCE structure, which is not implemented).
+Checked and found correct: Theorem 1 (Sellers) and its base cases, Lemma 2, Theorem 4 (insertion between pieces touches neither piece; window start and length), Theorem 7 (every step of the Myers invariant, including the carry chain and block carries; compared against the code's `Ph = Mv | ~(Xh | Pv)`, `Mh = Pv & Xh`, `Xh = (((Eq & Pv) + Pv) ^ Pv) | Eq`), Theorem 10, Propositions 8, 9', 10', 11 and Lemma 6'. The band tolerance of the s-hit filters is k (the code keeps hits whose diagonal differs by at most k and extends windows by k on both sides), as Theorem 12 requires.
 
-### Acknowledgements and Contributions
+Complexity claims were checked against the table and the code: Theta(mn), O(kn) expected, Theta(ceil(m/w) n), the seed-selection cost O(m L^2 + k m L), the expected-hit formula (matched by the measurements of Section 4.1), and the Landau-Vishkin bounds (O(nk) expected and O(nm) worst case with direct extension; O(nk) worst case would need the LCE structure, which is not implemented).
+
+## Acknowledgements and Contributions
 
 *[Placeholder, edit before submission: names and roles of the four team members, supervisor, and any help or tools to acknowledge.]*
 
-### References
-Each citation was checked by web search (authors, year, venue, pages), and all twenty were checked again in the docs pass; the record of that check is `results/references_verified.md` (one correction: reference 10 now says "published online 2020").
+## References
+
+Each citation was checked by web search (authors, year, venue, pages), and all twenty were checked again before submission; the record of that check is `results/references_verified.md` (one correction: reference 10 now says "published online 2020").
 
 1. P. H. Sellers. The theory and computation of evolutionary distances: pattern recognition. *Journal of Algorithms* 1(4):359-373, 1980.
 2. E. Ukkonen. Algorithms for approximate string matching. *Information and Control* 64(1-3):100-118, 1985.
