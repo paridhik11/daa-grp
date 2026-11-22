@@ -919,7 +919,7 @@ We built, proved and measured several ways to solve the k-differences problem on
 3. **With an index, filters win by orders of magnitude up to a clear limit.** At 10% error the best filter is about 1,400 times faster than a scan; the crossover is at k/m of about 0.17, and our cost model predicts it (0.169 against 0.168 measured), also on a genome it was not fitted on.
 4. **Rare seeds and several hits both help.** Choosing seeds by rarity pays once selection is cheap, and requiring 2 or 3 seed hits in a band moves the useful range up to about 17% error. From 20% error no filter beats the scan.
 5. **A per-query chooser follows the best method.** From k = 12 upwards it is within 0.95 to 1.00 of the best fixed method and never loses to the scan; at small k it pays a few tens of microseconds to choose, so a fixed s-hit filter is better there.
-6. **Real data behave like the simulations.** Human and orangutan mtDNA differ by a median of 15%, exactly at the crossover. The one-hit heuristic keeps read recall of 1.00 up to k = 15 and the two-hit variant loses reads earlier, so a heuristic is a choice with a measured price.
+6. **Real related sequences sit right at the crossover that the simulations predict** human and orangutan mtDNA differ by a median of 15%, the basic filter gains only about 1.5x there, and the 3-hit filter is 8x faster
 
 ### 5.2 What the comparison shows
 
