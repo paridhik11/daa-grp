@@ -23,6 +23,7 @@ python3 tests/crosscheck_real.py
 python3 tests/test_pruned.py
 python3 tests/test_lv.py
 python3 tests/test_filter_s.py
+python3 tests/test_pigeonhole_brute.py
 echo "== alignment output validation (CIGAR) + worked example"
 python3 tests/test_mapping.py
 python3 scripts/mapping_example.py
